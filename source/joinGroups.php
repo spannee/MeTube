@@ -51,11 +51,13 @@ if(isset($_POST['joingroup'])) {
 		echo 'alert("Please select a group")';
 		echo '</script>';
 	}else {
-		$addfriendsquery = "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME)
-							VALUES('$groupid', '$username')";
-		$addfriends = mysql_query($addfriendsquery) or die("Failed to join");
-		$insertid = mysql_insert_id();
-	
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME) VALUES(?, ?)");
+        mysqli_stmt_bind_param($stmt, 'is', $groupid, $username);
+        mysqli_stmt_execute($stmt);
+        $joinGroup = mysqli_stmt_get_result($stmt) or die('Failed to join');
+        $insertid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(isset($insertid)) {
 			echo '<script type="text/javascript">';
 			echo 'alert("Added to group")';
@@ -84,15 +86,18 @@ if(isset($_POST['joingroup'])) {
 	<tr></tr>
 	<tr>
 	<td>
-	<?php 
-	$loadgroupsquery = sprintf("SELECT GROUP_ID, GROUP_NAME FROM MT_GROUPS WHERE GROUP_ID IN
-								(SELECT GROUP_ID FROM MT_GROUP_MEMBERS WHERE
-								USERNAME != '$username')");
-	$loadgroups = mysql_query($loadgroupsquery) or die('Failed to load groups');
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT GROUP_ID, GROUP_NAME FROM MT_GROUPS WHERE GROUP_ID IN
+								           (SELECT GROUP_ID FROM MT_GROUP_MEMBERS WHERE USERNAME != ?)");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $loadgroups = mysqli_stmt_get_result($stmt) or die('Failed to load groups');
+    mysqli_stmt_close($stmt);
+
 	echo "<select name='groupname' id='groupname' style='width: 300px;'>";
 	echo "<option value='0'>Select Groups</option>";
-	if((mysql_num_rows($loadgroups)) > 0) {
-		while($groupresult = mysql_fetch_array($loadgroups)) {
+	if((mysqli_num_rows($loadgroups)) > 0) {
+		while($groupresult = mysqli_fetch_array($loadgroups)) {
 			$groupid = $groupresult["GROUP_ID"];
 			$groupname = $groupresult["GROUP_NAME"];
 			echo "<option value='$groupid'>$groupname</option>";

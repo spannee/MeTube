@@ -107,19 +107,23 @@ if(isset($_SESSION['groupid'])) {
 	<tr></tr>
 	<tr></tr>
 
-<?php 
+<?php
 
-	$friendsquery = sprintf("SELECT USER_CONTACT_ID FROM
-							 MT_USER_CONTACTS WHERE
-							 USERNAME = '$username' AND
-							 IS_FRIEND = 'Y' AND USER_CONTACT_ID NOT IN
-							 (SELECT USERNAME FROM MT_GROUP_MEMBERS WHERE
-							 GROUP_ID = '$groupid')");
-	$friends = mysql_query($friendsquery) or die('Failed to load friends');
+    $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM
+							               MT_USER_CONTACTS WHERE
+							               USERNAME = ? AND
+							               IS_FRIEND = 'Y' AND USER_CONTACT_ID NOT IN
+							               (SELECT USERNAME FROM MT_GROUP_MEMBERS WHERE
+							               GROUP_ID = ?)");
+    mysqli_stmt_bind_param($stmt, 'si', $username, $groupid);
+    mysqli_stmt_execute($stmt);
+    $friends = mysqli_stmt_get_result($stmt) or die('Failed to load friends');
+    mysqli_stmt_close($stmt);
+
 	echo "<tr><td><select name='friends' id='friends' style='width: 300px;'>";
 	echo "<option value='selectfriend'>Select Friend</option>";
-	if((mysql_num_rows($friends)) > 0) {
-		while($friendsresult = mysql_fetch_array($friends)) {
+	if((mysqli_num_rows($friends)) > 0) {
+		while($friendsresult = mysqli_fetch_array($friends)) {
 			$groupmember = $friendsresult["USER_CONTACT_ID"];
 			echo "<option value='$groupmember'>$groupmember</option>";
 		}
@@ -136,10 +140,12 @@ if(isset($_SESSION['groupid'])) {
 			echo 'alert("Please select a person")';
 			echo '</script>';
 		} else {
-			$addfriendsquery = "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME)
-								VALUES('$groupid', '$membername')";
-			$addfriends = mysql_query($addfriendsquery) or die("Failed to add friends");
-			$insertid = mysql_insert_id();
+
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME) VALUES(?, ?)");
+            mysqli_stmt_bind_param($stmt, 'is', $groupid, $membername);
+            mysqli_stmt_execute($stmt) or die("Failed to add friends");
+            $insertid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			
 			if(isset($insertid)) {
 				echo '<script type="text/javascript">';

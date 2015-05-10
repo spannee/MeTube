@@ -42,10 +42,13 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 if(isset($_POST['emailbutton'])) {
 	$email = $_POST['email'];
 
-	$checkUserEmailExists = sprintf("SELECT * FROM MT_USER WHERE EMAIL = '$email' AND USERNAME != '$username'");
-	$emailCheck = mysql_query($checkUserEmailExists);
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER WHERE EMAIL = ? AND USERNAME != ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $email, $username);
+    mysqli_stmt_execute($stmt);
+    $emailCheck = mysqli_stmt_get_result($stmt) or die("Failed to check email");
+    mysqli_stmt_close($stmt);
 
-	if(mysql_num_rows($emailCheck) > 0) {
+	if(mysqli_num_rows($emailCheck) > 0) {
 		$emailerror = TRUE;
 	} else {
 		$emailerror = FALSE;
@@ -58,10 +61,11 @@ if(isset($_POST['emailbutton'])) {
 	if($error || $emailerror) {
 
 	} else {
-		$updateemailnamequery = "UPDATE MT_USER SET
-							     EMAIL = '$email'
-								 WHERE USERNAME = '$username'";
-		$updateemail = mysql_query($updateemailnamequery) or die("Failed to update email");
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER SET EMAIL = ? WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $email, $username);
+        mysqli_stmt_execute($stmt);
+        $updateemail = mysqli_stmt_get_result($stmt) or die("Failed to update email");
+        mysqli_stmt_close($stmt);
 
 		if(!isset($updateemail)) {
 			echo '<script type="text/javascript">';

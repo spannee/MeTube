@@ -54,14 +54,15 @@ include("./contentHeader.php");
 
 if(isset($_GET['content_id'])) {
 	$contentid=intval($_GET['content_id']);
-	
-	$contentsearch = sprintf("SELECT * FROM
-							  MT_CONTENT WHERE
-							  CONTENT_ID = '$contentid'");
-	$search = mysql_query($contentsearch) or die('Failed to fetch video');
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_CONTENT WHERE CONTENT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $contentid);
+    mysqli_stmt_execute($stmt);
+    $search = mysqli_stmt_get_result($stmt) or die('Failed to fetch video');
+    mysqli_stmt_close($stmt);
 		
-	if((mysql_num_rows($search)) == 1) {
-		$searchresult = mysql_fetch_array($search);
+	if((mysqli_num_rows($search)) == 1) {
+		$searchresult = mysqli_fetch_array($search);
 		$contentowner = $searchresult["USERNAME"];
 		$contenttitle = $searchresult["CONTENT_TITLE"];
 		$contenttype = $searchresult["CONTENT_TYPE"];
@@ -74,8 +75,6 @@ if(isset($_GET['content_id'])) {
 		$contentlikes = $searchresult["LIKES"];
 		$contentcount = $searchresult["VIEW_COUNT"];
 		$contentuploadtime = $searchresult["UPLOAD_DATE"];
-	} else {
-		
 	}
 	
 	if(isset($contenttype)) {
@@ -98,15 +97,15 @@ if(isset($_GET['content_id'])) {
 					$canview = TRUE;
 					$setallfeatures = TRUE;
 				} elseif($username != $contentowner) {
-					$friendcheck = sprintf("SELECT *  FROM
-											MT_USER_CONTACTS WHERE
-											USERNAME = '$username' AND
-											USER_CONTACT_ID = '$contentowner' AND
-											IS_FRIEND = 'Y' AND
-											IS_BLOCKED = 'N'");
-					$check = mysql_query($friendcheck) or die('Failed to check friends');
+                    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER_CONTACTS WHERE
+                                                           USERNAME = ? AND USER_CONTACT_ID = ? AND
+                                                           IS_FRIEND = 'Y' AND IS_BLOCKED = 'N'");
+                    mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+                    mysqli_stmt_execute($stmt);
+                    $check = mysqli_stmt_get_result($stmt) or die('Failed to check friends');
+                    mysqli_stmt_close($stmt);
 					
-					if((mysql_num_rows($check)) == 1) {
+					if((mysqli_num_rows($check)) == 1) {
 						$canview = TRUE;
 						$setallfeatures = TRUE;
 					} else {
@@ -120,14 +119,15 @@ if(isset($_GET['content_id'])) {
 		} elseif($contentsharing == 'S') {
 			if(isset($username)) {
 				if($username != $contentowner) {
-					$blockcheck = sprintf("SELECT *  FROM
-											MT_USER_CONTACTS WHERE
-											USERNAME = '$username' AND
-											USER_CONTACT_ID = '$contentowner' AND
-											IS_BLOCKED = 'Y'");
-					$check = mysql_query($blockcheck) or die('Failed to check blocked friends');
+                    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER_CONTACTS WHERE
+                                                           USERNAME = ? AND USER_CONTACT_ID = ? AND
+                                                           IS_BLOCKED = 'Y'");
+                    mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+                    mysqli_stmt_execute($stmt);
+                    $check = mysqli_stmt_get_result($stmt) or die('Failed to check blocked friends');
+                    mysqli_stmt_close($stmt);
 					
-					if((mysql_num_rows($check)) == 0) {
+					if((mysqli_num_rows($check)) == 0) {
 						$canview = TRUE;
 						$setallfeatures = TRUE;
 					}	
@@ -140,13 +140,16 @@ if(isset($_GET['content_id'])) {
 				$setallfeatures = FALSE;
 			}
 		}
-		
+
 		if(isset($canview)) {
 		if($canview) {
-			$updatecountquery = "UPDATE MT_CONTENT SET VIEW_COUNT=VIEW_COUNT+1 WHERE
-								 CONTENT_ID = '$contentid';";
-			$updatecount = mysql_query($updatecountquery) or die("Failed to view count");
-			$countid = mysql_insert_id();
+            $stmt = mysqli_prepare($dbconnection, "UPDATE MT_CONTENT SET VIEW_COUNT=VIEW_COUNT+1 WHERE
+								                   CONTENT_ID = ?;");
+            mysqli_stmt_bind_param($stmt, 'i', $contentid);
+            mysqli_stmt_execute($stmt);
+            $updatecount = mysqli_stmt_get_result($stmt) or die("Failed to view count");
+            $countid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 		
 			if(!isset($countid)) {
 				die("Failed to view count");
@@ -276,15 +279,19 @@ if(isset($_GET['content_id'])) {
 							<input type="submit" name="addtofavorites" value="Favorites" style="width: 70px;"/>
 							&nbsp;&nbsp;&nbsp;&nbsp;
 							<?php
-							$loadplaylistsquery = sprintf("SELECT PLAYLIST_ID, PLAYLIST_NAME
-														   FROM MT_USER_PLAYLIST WHERE
-														   USERNAME = '$username' AND
-														   PLAYLIST_TYPE = '$contenttype'");
-							$loadplaylists = mysql_query($loadplaylistsquery) or die('Failed to load playlists');
-							if((mysql_num_rows($loadplaylists)) > 0) {
+                            $stmt = mysqli_prepare($dbconnection, "SELECT PLAYLIST_ID, PLAYLIST_NAME
+														           FROM MT_USER_PLAYLIST WHERE
+														           USERNAME = ? AND
+                                                                   PLAYLIST_TYPE = ?");
+                            mysqli_stmt_bind_param($stmt, 'ss', $username, $contenttype);
+                            mysqli_stmt_execute($stmt);
+                            $loadplaylists = mysqli_stmt_get_result($stmt) or die('Failed to load playlists');
+                            mysqli_stmt_close($stmt);
+
+							if((mysqli_num_rows($loadplaylists)) > 0) {
 								echo "<select name='playlists' id='playlists'>";
 								echo "<option value='0'>Select Playlist</option>";
-								while($playlistresult = mysql_fetch_array($loadplaylists)) {
+								while($playlistresult = mysqli_fetch_array($loadplaylists)) {
 									$playlistid = $playlistresult["PLAYLIST_ID"];
 									$playlistidentity = $playlistresult["PLAYLIST_NAME"];
 									echo "<option value='$playlistid'>$playlistidentity</option>";
@@ -353,35 +360,44 @@ if(isset($_GET['content_id'])) {
 				$contentidsintags = array();
 				$contentids = array();
 				$contenttitles = array();
-				$tagsearchquery = sprintf("SELECT TAGS
-										   FROM MT_CONTENT_TAGS WHERE
-										   CONTENT_ID = '$contentid'");
-				$tagsearch = mysql_query($tagsearchquery) or die('Failed to search tags');
-				$tagsintable = mysql_fetch_row($tagsearch);
+
+                $stmt = mysqli_prepare($dbconnection, "SELECT TAGS
+                                                       FROM MT_CONTENT_TAGS WHERE
+                                                       CONTENT_ID = ?");
+                mysqli_stmt_bind_param($stmt, 'i', $contentid);
+                mysqli_stmt_execute($stmt);
+                $tagsearch = mysqli_stmt_get_result($stmt) or die('Failed to search tags');
+                mysqli_stmt_close($stmt);
+
+				$tagsintable = mysqli_fetch_row($tagsearch);
 				$tagsmixture = $tagsintable[0];
 				$tags = explode(' ',$tagsmixture);
 
 				foreach ($tags as $tag) {
-					$valuesearch = "SELECT CONTENT_ID
-									FROM MT_CONTENT_TAGS WHERE
-									TAGS LIKE '%$tag%'
-									AND CONTENT_ID != '$contentid'";
-					$valuesearchquery = mysql_query($valuesearch) or die('Failed to search tags');
-					while($valuesearchresults = mysql_fetch_array($valuesearchquery)) {
+                    $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID
+                                                           FROM MT_CONTENT_TAGS WHERE
+                                                           TAGS LIKE ?
+                                                           AND CONTENT_ID != ?");
+                    $tag = '%' . $tag . '%';
+                    mysqli_stmt_bind_param($stmt, 'si', $tag, $contentid);
+                    mysqli_stmt_execute($stmt);
+                    $valuesearch = mysqli_stmt_get_result($stmt) or die('Failed to search tags');
+                    mysqli_stmt_close($stmt);
+
+					while($valuesearchresults = mysqli_fetch_array($valuesearch)) {
 						$contentidsintags[] = $valuesearchresults["CONTENT_ID"];
 					}
 				}
 				foreach ($contentidsintags as $id) {
-					$contentsearch = sprintf("SELECT CONTENT_ID,
-											  CONTENT_TITLE,
-											  CONTENT_LOCATION
-											  FROM MT_CONTENT WHERE
-											  CONTENT_TYPE = '$contenttype'
-											  AND
-											  CONTENT_ID = '$id' AND 
-									   		  CONTENT_SHARING != 'P'");
-					$valuecontentquery = mysql_query($contentsearch) or die('Failed to search content');
-					while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                    $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+											               FROM MT_CONTENT WHERE CONTENT_TYPE = ? AND
+											               CONTENT_ID = ? AND CONTENT_SHARING != 'P'");
+                    mysqli_stmt_bind_param($stmt, 'si', $contenttype, $id);
+                    mysqli_stmt_execute($stmt);
+                    $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search content');
+                    mysqli_stmt_close($stmt);
+
+					while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 						$contentids[] = $contentsearchresults["CONTENT_ID"];
 						$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 					}
@@ -406,11 +422,14 @@ if(isset($_GET['content_id'])) {
 	}
 	
 	if(isset($_POST['like'])) {
-		$updatelikequery = "UPDATE MT_CONTENT SET LIKES=LIKES+1 WHERE 
-					  		CONTENT_ID = '$contentid';";
-		$updatelike = mysql_query($updatelikequery) or die("Failed to like");
-		$likeid = mysql_insert_id();
-			
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_CONTENT SET LIKES=LIKES+1 WHERE
+					  		                   CONTENT_ID = ?;");
+        mysqli_stmt_bind_param($stmt, 'i', $contentid);
+        mysqli_stmt_execute($stmt);
+        $updatelike = mysqli_stmt_get_result($stmt) or die('Failed to like');
+        $likeid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(!isset($likeid)) {
 			die("Failed to like");
 		} 
@@ -435,42 +454,53 @@ if(isset($_GET['content_id'])) {
 	}
 	
 	if($rate) {
-		$checkuserratedquery = sprintf("SELECT * FROM
-								   		MT_CONTENT_RATING WHERE
-								   		CONTENT_ID = '$contentid' AND
-								   		USERNAME = '$username'");
-		$checkuserrated = mysql_query($checkuserratedquery) or die('Failed to check whether user rated');
-		if((mysql_num_rows($checkuserrated)) == 1) {
-			$updateratingquery = "UPDATE MT_CONTENT_RATING SET RATING='$ratingvalue' WHERE
-								  CONTENT_ID = '$contentid' AND
-								  USERNAME = '$username'";
-			$updaterating = mysql_query($updateratingquery) or die("Failed to update rating");
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_CONTENT_RATING
+                                               WHERE CONTENT_ID = ? AND USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'is', $contentid, $username);
+        mysqli_stmt_execute($stmt);
+        $checkuserrated = mysqli_stmt_get_result($stmt) or die('Failed to check whether user rated');
+        mysqli_stmt_close($stmt);
+
+		if((mysqli_num_rows($checkuserrated)) == 1) {
+            $stmt = mysqli_prepare($dbconnection, "UPDATE MT_CONTENT_RATING SET RATING=? WHERE
+								                   CONTENT_ID = ? AND USERNAME = ?");
+            mysqli_stmt_bind_param($stmt, 'iis', $ratingvalue, $contentid, $username);
+            mysqli_stmt_execute($stmt);
+            $updaterating = mysqli_stmt_get_result($stmt) or die("Failed to update rating");
+            mysqli_stmt_close($stmt);
 		}
-		$checkuserquery = sprintf("SELECT USERNAME FROM
-								   MT_CONTENT_RATING WHERE
-								   CONTENT_ID = '$contentid' AND
-								   USERNAME = '$username'");
-		$checkuser = mysql_query($checkuserquery) or die('Failed to check user');
-		$userrated = mysql_fetch_row($checkuser);
+        $stmt = mysqli_prepare($dbconnection, "SELECT USERNAME FROM MT_CONTENT_RATING
+                                               WHERE CONTENT_ID = ? AND USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'is', $contentid, $username);
+        mysqli_stmt_execute($stmt);
+        $checkuser = mysqli_stmt_get_result($stmt) or die('Failed to check user');
+        mysqli_stmt_close($stmt);
+		$userrated = mysqli_fetch_row($checkuser);
 		if($userrated[0] != NULL) {
-			$checkratingquery = sprintf("SELECT AVG(RATING) FROM
-										 MT_CONTENT_RATING WHERE
-										 CONTENT_ID = '$contentid'");
-			$checkrating = mysql_query($checkratingquery) or die('Failed to check whether user rated');
-			$ratingdetails = mysql_fetch_row($checkrating);
+            $stmt = mysqli_prepare($dbconnection, "SELECT AVG(RATING) FROM
+                                                   MT_CONTENT_RATING WHERE CONTENT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $contentid);
+            mysqli_stmt_execute($stmt);
+            $checkrating = mysqli_stmt_get_result($stmt) or die('Failed to check whether user rated');
+            mysqli_stmt_close($stmt);
+			$ratingdetails = mysqli_fetch_row($checkrating);
 			$ratingaverage = $ratingdetails[0];
 		} else {
 			$ratingaverage = $ratingvalue;
-			$insertfinalratingquery = "INSERT INTO MT_CONTENT_RATING
-									   (CONTENT_ID, USERNAME, RATING)
-									   VALUES('$contentid', '$username', '$ratingvalue')";
-			$insertfinalrating = mysql_query($insertfinalratingquery) or die("Failed to insert rating");
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CONTENT_RATING (CONTENT_ID, USERNAME, RATING)
+									               VALUES(?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, 'isi', $contentid, $username, $ratingvalue);
+            mysqli_stmt_execute($stmt);
+            $insertfinalrating = mysqli_stmt_get_result($stmt) or die("Failed to insert rating");
+            mysqli_stmt_close($stmt);
 		}
-		$updatefinalratingquery = "UPDATE MT_CONTENT SET CONTENT_RATING='$ratingaverage' WHERE
-							  	   CONTENT_ID = '$contentid';";
-		$updatefinalrating = mysql_query($updatefinalratingquery) or die("Failed to update rating");
-		$ratingid = mysql_insert_id();
-		
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_CONTENT SET CONTENT_RATING=? WHERE CONTENT_ID = ?;");
+        mysqli_stmt_bind_param($stmt, 'ii', $ratingaverage, $contentid);
+        mysqli_stmt_execute($stmt);
+        $updatefinalrating = mysqli_stmt_get_result($stmt) or die("Failed to update rating");
+        $ratingid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(!isset($ratingid)) {
 			die("Failed to rate");
 		} 
@@ -485,23 +515,29 @@ if(isset($_GET['content_id'])) {
 			echo 'alert("Please select a playlist")';
 			echo '</script>';
 		} else {
-			$checkplaylistsquery = sprintf("SELECT * FROM
-										    MT_PLAYLIST_CONTENT WHERE
-										    PLAYLIST_ID = '$playlistnumber' AND
-											CONTENT_ID = '$contentid'");
-			$checkplaylists = mysql_query($checkplaylistsquery) or die('Failed to check playlists');
+            $stmt = mysqli_prepare($dbconnection, "SELECT * FROM
+										           MT_PLAYLIST_CONTENT WHERE
+										           PLAYLIST_ID = ? AND
+											       CONTENT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'ii', $playlistnumber, $contentid);
+            mysqli_stmt_execute($stmt);
+            $checkplaylists = mysqli_stmt_get_result($stmt) or die('Failed to check playlists');
+            mysqli_stmt_close($stmt);
 			
-			if((mysql_num_rows($checkplaylists)) > 0) {
+			if((mysqli_num_rows($checkplaylists)) > 0) {
 				echo '<script type="text/javascript">';
 				echo 'alert("This video is already there in the selected playlist")';
 				echo '</script>';
 			} else {
-				$addcontentquery = "INSERT INTO MT_PLAYLIST_CONTENT
-									(PLAYLIST_ID, CONTENT_ID)
-									VALUES('$playlistnumber', '$contentid')";
-				$addcontent = mysql_query($addcontentquery) or die("Failed to add content to playlist");
-				$addcontentid = mysql_insert_id();
-				
+                $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_PLAYLIST_CONTENT
+                                                       (PLAYLIST_ID, CONTENT_ID)
+                                                       VALUES(?, ?)");
+                mysqli_stmt_bind_param($stmt, 'ii', $playlistnumber, $contentid);
+                mysqli_stmt_execute($stmt);
+                $addcontent = mysqli_stmt_get_result($stmt) or die("Failed to add content to playlist");
+                $addcontentid = mysqli_insert_id($dbconnection);
+                mysqli_stmt_close($stmt);
+
 				if(isset($addcontentid)) {
 					echo '<script type="text/javascript">';
 					echo 'alert("Added to playlist")';
@@ -512,22 +548,29 @@ if(isset($_GET['content_id'])) {
 	}
 	
 	if(isset($_POST['addtofavorites'])) {
-		$checkfavoritesquery = sprintf("SELECT * FROM
-										MT_USER_FAVOURITES WHERE
-										USERNAME = '$username' AND
-										CONTENT_ID = '$contentid'");
-		$checkfavorites = mysql_query($checkfavoritesquery) or die('Failed to check favorites');
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM
+                                               MT_USER_FAVOURITES WHERE
+                                               USERNAME = ? AND
+                                               CONTENT_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'si', $username, $contentid);
+        mysqli_stmt_execute($stmt);
+        $checkfavorites = mysqli_stmt_get_result($stmt) or die('Failed to check favorites');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($checkfavorites)) > 0) {
+		if((mysqli_num_rows($checkfavorites)) > 0) {
 			echo '<script type="text/javascript">';
 			echo 'alert("This video is already there in favorites")';
 			echo '</script>';
 		} else {
-			$addcontentquery = "INSERT INTO MT_USER_FAVOURITES
-								(USERNAME, CONTENT_ID, FAVORITES_TYPE)
-								VALUES('$username', '$contentid', '$contenttype')";
-			$addcontent = mysql_query($addcontentquery) or die("Failed to add content to favorites");
-			$addcontentid = mysql_insert_id();
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_FAVOURITES
+                                                   (USERNAME, CONTENT_ID, FAVORITES_TYPE)
+                                                   VALUES(?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, 'sis', $username, $contentid, $contenttype);
+            mysqli_stmt_execute($stmt);
+            $addcontent = mysqli_stmt_get_result($stmt) or die("Failed to add content to playlist");
+            $addcontentid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
+
 			if(isset($addcontentid)) {
 				echo '<script type="text/javascript">';
 				echo 'alert("Added to Favorites")';

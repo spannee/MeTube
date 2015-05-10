@@ -65,24 +65,29 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	
 	if(isset($_POST['searchfriendbutton'])) {
 		$email = $_POST['emailvalue'];
+
+        $stmt = mysqli_prepare($dbconnection, "SELECT USERNAME FROM MT_USER WHERE
+                                               EMAIL = ? AND USERNAME != ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $email, $username);
+        mysqli_stmt_execute($stmt);
+        $userssearch = mysqli_stmt_get_result($stmt) or die('Failed to search friends');
+        mysqli_stmt_close($stmt);
 	
-		$userssearchquery = sprintf("SELECT USERNAME
-									 FROM MT_USER WHERE
-									 EMAIL = '$email' AND
-									 USERNAME != '$username'");
-		$userssearch = mysql_query($userssearchquery) or die('Failed to search friends');
-	
-		if((mysql_num_rows($userssearch)) == 1) {
-			while($userssearchresults = mysql_fetch_array($userssearch)) {
+		if((mysqli_num_rows($userssearch)) == 1) {
+			while($userssearchresults = mysqli_fetch_array($userssearch)) {
 				$user = $userssearchresults["USERNAME"];
 			}
-			$userscheckquery = sprintf("SELECT IS_FRIEND FROM MT_USER_CONTACTS WHERE
-										USERNAME = '$username' AND USER_CONTACT_ID = '$user'");
-			$userscheck = mysql_query($userscheckquery) or die('Failed to check friends');
-			$isfriend = mysql_fetch_row($userscheck);
+            $stmt = mysqli_prepare($dbconnection, "SELECT IS_FRIEND FROM MT_USER_CONTACTS WHERE
+										           USERNAME = ? AND USER_CONTACT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'ss', $username, $user);
+            mysqli_stmt_execute($stmt);
+            $userscheck = mysqli_stmt_get_result($stmt) or die('Failed to check friends');
+            mysqli_stmt_close($stmt);
+
+			$isfriend = mysqli_fetch_row($userscheck);
 						
 			if($isfriend[0] == '0' || $isfriend[0] != 'N' || $isfriend[0] != NULL) {
-				while($usercheckresults = mysql_fetch_array($userscheck)) {
+				while($usercheckresults = mysqli_fetch_array($userscheck)) {
 					$user = $userssearchresults["USER_CONTACT_ID"];
 				}
 				$_SESSION['contentownersearch'] = $user;

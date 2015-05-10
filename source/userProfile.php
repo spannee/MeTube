@@ -57,26 +57,28 @@ if(isset($_GET['searchchannelbutton'])) {
 		$contentids = array();
 		$contenttitles = array();
 		foreach ($valuesinsearch as $value) {
-			$valuesearch = "SELECT CONTENT_ID
-							FROM MT_CONTENT_TAGS WHERE
-							TAGS LIKE '%$value%'";
-			$valuesearchquery = mysql_query($valuesearch) or die('Failed to search tags');
-			while($valuesearchresults = mysql_fetch_array($valuesearchquery)) {
+            $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_CONTENT_TAGS WHERE TAGS LIKE ?");
+            $value = '%' . $value . '%';
+            mysqli_stmt_bind_param($stmt, 's', $value);
+            mysqli_stmt_execute($stmt);
+            $valuesearch = mysqli_stmt_get_result($stmt) or die('Failed to search tags');
+            mysqli_stmt_close($stmt);
+
+            while($valuesearchresults = mysqli_fetch_array($valuesearch)) {
 				$contentidsintags[] = $valuesearchresults["CONTENT_ID"];
 			}
 		}
 		if(!empty($contentidsintags)) {
 			foreach ($contentidsintags as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-									      CONTENT_TITLE,
-										  CONTENT_LOCATION
-										  FROM MT_CONTENT WHERE
-										  USERNAME = '$username' AND
-										  CONTENT_TYPE = '$mediatype'
-										  AND
-									  	  CONTENT_ID = '$id'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+										               FROM MT_CONTENT WHERE USERNAME = ? AND
+										               CONTENT_TYPE = ? AND CONTENT_ID = ?");
+                mysqli_stmt_bind_param($stmt, 'ssi', $username, $mediatype, $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search content');
+                mysqli_stmt_close($stmt);
+
+                while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -101,19 +103,18 @@ if(isset($_GET['searchchannelbutton'])) {
 	if($mediatypeforchannel == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$uploadsearch = sprintf("SELECT CONTENT_ID,
-									  	CONTENT_TITLE,
-									    CONTENT_LOCATION
-									    FROM MT_CONTENT WHERE
-									    USERNAME = '$username' AND
-									    CONTENT_TYPE = '$mediatypeforchannel'");
-		$search = mysql_query($uploadsearch) or die('Failed to search uploads');
-		
-		if((mysql_num_rows($search)) > 0) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE USERNAME = ? AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $username, $mediatypeforchannel);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search uploads');
+        mysqli_stmt_close($stmt);
+
+        if((mysqli_num_rows($search)) > 0) {
 			echo "<br/>";
 			echo "<br/>";
 			echo "<table style='margin-left:300px;'>";
-			while($searchresult = mysql_fetch_array($search)) {
+			while($searchresult = mysqli_fetch_array($search)) {
 				$contentid = $searchresult["CONTENT_ID"];
 				$contenttitle = $searchresult["CONTENT_TITLE"];
 				echo "<tr><td><a href='./userUploadsView.php?content_id=".$contentid."&media_type=".$mediatypeforchannel."'><img src='fileUploads/image/photo.jpg' height=90 width=170/></a></td>";
@@ -133,25 +134,27 @@ if(isset($_GET['searchchannelbutton'])) {
 		$mediatypeerror = 1;
 	} else {
 		$contentidsinfavorites = array();
-		$favoritessearch = sprintf("SELECT CONTENT_ID
-									       FROM MT_USER_FAVOURITES WHERE
-									       USERNAME = '$username' AND
-										   FAVORITES_TYPE = '$mediatype'");
-		$favoritessearchquery = mysql_query($favoritessearch) or die('Failed to search favorites');
-		while($favoritesearchresults = mysql_fetch_array($favoritessearchquery)) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_USER_FAVOURITES WHERE
+									           USERNAME = ? AND FAVORITES_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $username, $mediatype);
+        mysqli_stmt_execute($stmt);
+        $favoritessearch = mysqli_stmt_get_result($stmt) or die('Failed to search favorites');
+        mysqli_stmt_close($stmt);
+
+        while($favoritesearchresults = mysqli_fetch_array($favoritessearch)) {
 			$contentidsinfavorites[] = $favoritesearchresults["CONTENT_ID"];
 		}
 		if(!empty($contentidsinfavorites)) { 	
 			foreach ($contentidsinfavorites as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-												 CONTENT_TITLE,
-												 CONTENT_LOCATION
-												 FROM MT_CONTENT WHERE
-												 CONTENT_TYPE = '$mediatype' AND
-												 CONTENT_ID = '$id' AND 
-												 CONTENT_SHARING != 'P'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search favorite content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+												       FROM MT_CONTENT WHERE CONTENT_TYPE = ? AND
+												       CONTENT_ID = ? AND CONTENT_SHARING != 'P'");
+                mysqli_stmt_bind_param($stmt, 'si', $mediatype, $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search favorite content');
+                mysqli_stmt_close($stmt);
+
+                while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -177,26 +180,28 @@ if(isset($_GET['searchchannelbutton'])) {
 		$mediatypeerror = 1;
 	} else {
 		$contentidsinsubscriptions = array();
-		$subscriptionsearch = sprintf("SELECT CONTENT_ID FROM MT_CONTENT
-									   WHERE USERNAME IN
-									   (SELECT CHANNEL_ID FROM MT_CHANNEL_SUBSCRIBERS
-									   WHERE USERNAME = '$username') AND
-									   CONTENT_TYPE = '$mediatype'");
-		$subscriptionsearchquery = mysql_query($subscriptionsearch) or die('Failed to search subscriptions');
-		while($subscriptionsearchresults = mysql_fetch_array($subscriptionsearchquery)) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_CONTENT WHERE USERNAME IN
+									           (SELECT CHANNEL_ID FROM MT_CHANNEL_SUBSCRIBERS
+									           WHERE USERNAME = ?) AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $username, $mediatype);
+        mysqli_stmt_execute($stmt);
+        $subscriptionsearch = mysqli_stmt_get_result($stmt) or die('Failed to search subscriptions');
+        mysqli_stmt_close($stmt);
+
+        while($subscriptionsearchresults = mysqli_fetch_array($subscriptionsearch)) {
 			$contentidsinsubscriptions[] = $subscriptionsearchresults["CONTENT_ID"];
 		}
 		if(!empty($contentidsinsubscriptions)) { 	
 			foreach ($contentidsinsubscriptions as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-												 CONTENT_TITLE,
-												 CONTENT_LOCATION
-												 FROM MT_CONTENT WHERE
-												 CONTENT_TYPE = '$mediatype' AND
-												 CONTENT_ID = '$id' AND 
-												 CONTENT_SHARING != 'P'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search subscriptions content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+												       FROM MT_CONTENT WHERE CONTENT_TYPE = ? AND
+												       CONTENT_ID = ? AND CONTENT_SHARING != 'P'");
+                mysqli_stmt_bind_param($stmt, 'si', $mediatype, $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search subscriptions content');
+                mysqli_stmt_close($stmt);
+
+                while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -262,23 +267,26 @@ if(isset($_GET['searchchannelbutton'])) {
 		echo '</script>';
 	} else {
 		$contentidsinplaylists = array();
-		$playlistsearch = sprintf("SELECT CONTENT_ID
-								   FROM MT_PLAYLIST_CONTENT WHERE
-								   PLAYLIST_ID = '$playlistnumber'");
-		$playlistsearchquery = mysql_query($playlistsearch) or die('Failed to search playlist');
-		while($playlistsearchresults = mysql_fetch_array($playlistsearchquery)) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_PLAYLIST_CONTENT WHERE PLAYLIST_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'i', $playlistnumber);
+        mysqli_stmt_execute($stmt);
+        $playlistsearch = mysqli_stmt_get_result($stmt) or die('Failed to search playlist');
+        mysqli_stmt_close($stmt);
+
+        while($playlistsearchresults = mysqli_fetch_array($playlistsearch)) {
 			$contentidsinplaylists[] = $playlistsearchresults["CONTENT_ID"];
 		}
 		if(!empty($contentidsinplaylists)) { 	
 			foreach ($contentidsinplaylists as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-												 CONTENT_TITLE,
-												 CONTENT_LOCATION
-												 FROM MT_CONTENT WHERE
-												 CONTENT_ID = '$id' AND 
-												 CONTENT_SHARING != 'P'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search playlist content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+												       FROM MT_CONTENT WHERE CONTENT_ID = ?
+												       AND CONTENT_SHARING != 'P'");
+                mysqli_stmt_bind_param($stmt, 'i', $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search playlist content');
+                mysqli_stmt_close($stmt);
+
+                while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -298,20 +306,19 @@ if(isset($_GET['searchchannelbutton'])) {
 		}
 	}	
 } else {
-	$onloadsearch = sprintf("SELECT CONTENT_ID,
-							  		CONTENT_TITLE,
-									CONTENT_LOCATION
-							 FROM MT_CONTENT WHERE
-							 USERNAME = '$username' AND
-							 CONTENT_TYPE = 'V'");
-	$search = mysql_query($onloadsearch) or die('Failed to load');
+    $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+							               FROM MT_CONTENT WHERE USERNAME = ? AND CONTENT_TYPE = 'V'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $search = mysqli_stmt_get_result($stmt) or die('Failed to load');
+    mysqli_stmt_close($stmt);
 	
-	if((mysql_num_rows($search)) > 0) {
+	if((mysqli_num_rows($search)) > 0) {
 		echo "<br/>";
 		echo "<br/>";
 		echo "<table style='margin-left:300px;'>";
 		$mediatype = 'V';
-		while($searchresult = mysql_fetch_array($search)) {
+		while($searchresult = mysqli_fetch_array($search)) {
 			$contentid = $searchresult["CONTENT_ID"];
 			$contenttitle = $searchresult["CONTENT_TITLE"];
 			echo "<tr><td><a href='./userUploadsView.php?content_id=".$contentid."&media_type=".$mediatype."'><img src='fileUploads/image/photo.jpg' height=90 width=170/></a></td>";
@@ -335,14 +342,15 @@ if(isset($_POST['createplaylist'])) {
 		$playlisttypeerror = FALSE;
 	}
 
-	$loadplaylistsquery = sprintf("SELECT PLAYLIST_NAME
-								   FROM MT_USER_PLAYLIST WHERE
-								   USERNAME = '$username'");
-	$loadplaylists = mysql_query($loadplaylistsquery) or die('Failed to load playlists');
+    $stmt = mysqli_prepare($dbconnection, "SELECT PLAYLIST_NAME FROM MT_USER_PLAYLIST WHERE USERNAME = ?");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $loadplaylists = mysqli_stmt_get_result($stmt) or die('Failed to load playlists');
+    mysqli_stmt_close($stmt);
 	
-	if((mysql_num_rows($loadplaylists)) > 0) {
+	if((mysqli_num_rows($loadplaylists)) > 0) {
 		$playlistidentity = array();
-		while($playlistresult = mysql_fetch_array($loadplaylists)) {
+		while($playlistresult = mysqli_fetch_array($loadplaylists)) {
 			$playlistidentity[] = $playlistresult["PLAYLIST_NAME"];
 		}
 		
@@ -354,11 +362,14 @@ if(isset($_POST['createplaylist'])) {
 		}
 	}
 	if(!$playlisterror && !$playlisttypeerror) {
-		$addplaylistquery = "INSERT INTO MT_USER_PLAYLIST
-							 (USERNAME, PLAYLIST_NAME, PLAYLIST_TYPE)
-							 VALUES('$username', '$playlistname', '$playlisttype')";
-		$addplaylist = mysql_query($addplaylistquery) or die("Failed to add playlist");
-		$addplaylistid = mysql_insert_id();
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_PLAYLIST (USERNAME, PLAYLIST_NAME, PLAYLIST_TYPE)
+							                   VALUES(?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, 's', $username, $playlistname, $playlisttype);
+        mysqli_stmt_execute($stmt);
+        $addplaylist = mysqli_stmt_get_result($stmt) or die("Failed to add playlist");
+        $addplaylistid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(isset($addplaylistid)) {
 			echo '<script type="text/javascript">';
 			echo 'alert("Playlist created")';

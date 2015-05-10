@@ -58,13 +58,16 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	echo '<tr></tr>';
 	echo '<tr></tr>';
 	echo '<tr></tr>';
-	
-	$userscheckquery = sprintf("SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
-								USERNAME = '$username' AND IS_FRIEND = 'A'");
-	$userscheck = mysql_query($userscheckquery) or die('Failed to check friends');
-	if((mysql_num_rows($userscheck)) > 0) {
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE USERNAME = ? AND IS_FRIEND = 'A'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $userscheck = mysqli_stmt_get_result($stmt) or die('Failed to check friends');
+    mysqli_stmt_close($stmt);
+
+	if((mysqli_num_rows($userscheck)) > 0) {
 		$user = array();
-		while($usercheckresults = mysql_fetch_array($userscheck)) {
+		while($usercheckresults = mysqli_fetch_array($userscheck)) {
 			$users[] = $usercheckresults["USER_CONTACT_ID"];
 		}
 		

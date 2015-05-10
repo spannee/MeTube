@@ -55,12 +55,16 @@ if(isset($_SESSION['groupid'])) {
 	if(isset($_GET['index'])) {
 		$indexvalue = $_GET['index'];
 		$startindex = ($indexvalue * 10) - 10;
-		$topicquery = sprintf("SELECT * FROM MT_TOPICS WHERE
-						       GROUP_ID = '$groupid' LIMIT $startindex,10 ");
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_TOPICS WHERE GROUP_ID = ? LIMIT ?,10 ");
+        mysqli_stmt_bind_param($stmt, 'ii', $groupid, $startindex);
 	} else {
-		$topiccountquery = sprintf("SELECT COUNT(GROUP_ID) FROM MT_TOPICS WHERE GROUP_ID = '$groupid' ");
-		$topiccount = mysql_query($topiccountquery) or die('Failed to check count');
-		$maxtopiccount = mysql_fetch_row($topiccount);
+        $stmt = mysqli_prepare($dbconnection, "SELECT COUNT(GROUP_ID) FROM MT_TOPICS WHERE GROUP_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'i', $groupid);
+        mysqli_stmt_execute($stmt);
+        $topiccount = mysqli_stmt_get_result($stmt) or die('Failed to check count');
+        mysqli_stmt_close($stmt);
+
+		$maxtopiccount = mysqli_fetch_row($topiccount);
 		if($maxtopiccount[0] != 0) {
 			$required = $maxtopiccount[0] % 10;
 			
@@ -72,16 +76,20 @@ if(isset($_SESSION['groupid'])) {
 		} else {
 			$shown = 10;
 		}
-		
-		$topicquery = sprintf("SELECT * FROM (SELECT * FROM MT_TOPICS WHERE
- 										 GROUP_ID = '$groupid' ORDER BY CREATED_DATE_TIME DESC
-     									 LIMIT $shown) AS LAST_TOPIC ORDER BY CREATED_DATE_TIME");	
+
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM (SELECT * FROM MT_TOPICS WHERE
+ 										       GROUP_ID = ? ORDER BY CREATED_DATE_TIME DESC
+     									       LIMIT ?) AS LAST_TOPIC ORDER BY CREATED_DATE_TIME");
+        mysqli_stmt_bind_param($stmt, 'ii', $groupid, $shown);
 	} 
 	
 	if(isset($topicquery)) {
-		$topic = mysql_query($topicquery) or die('Failed to retrieve topic');
-		if(mysql_num_rows($topic) > 0) {
-			while($topicresult = mysql_fetch_array($topic)) {
+        mysqli_stmt_execute($stmt);
+        $topic = mysqli_stmt_get_result($stmt) or die('Failed to retrieve topic');
+        mysqli_stmt_close($stmt);
+
+		if(mysqli_num_rows($topic) > 0) {
+			while($topicresult = mysqli_fetch_array($topic)) {
 				echo '<tr></tr>';
 				echo '<tr></tr>';
 				echo '<tr></tr>';
@@ -122,21 +130,27 @@ if(isset($_SESSION['groupid'])) {
 		$topictitle = $_GET['topictitle'];
 		
 		if($topictitle != NULL) {
-			$topicsequencequery = sprintf("SELECT MAX(TOPIC_SEQ_NO) FROM MT_TOPICS WHERE
-									 	   GROUP_ID = '$groupid'");
-		
-			$topicsequence = mysql_query($topicsequencequery) or die('Failed to check sequence number');
-			$maxtopicsequence = mysql_fetch_row($topicsequence);
+            $stmt = mysqli_prepare($dbconnection, "SELECT MAX(TOPIC_SEQ_NO) FROM MT_TOPICS WHERE GROUP_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $groupid);
+            mysqli_stmt_execute($stmt);
+            $topicsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+            mysqli_stmt_close($stmt);
+
+            $maxtopicsequence = mysqli_fetch_row($topicsequence);
 			if($maxtopicsequence[0] != NULL) {
 				$sequencenumber = $maxtopicsequence[0] + 1;				
 			} else {
 				$sequencenumber = 1;
 			}
-		
-			$addtopicquery = "INSERT INTO MT_TOPICS(GROUP_ID, TOPIC_TITLE, TOPIC_SEQ_NO, USERNAME_WHO_CREATES, CREATED_DATE_TIME)
-							  VALUES('$groupid', '$topictitle', '$sequencenumber', '$username', NOW())";
-			$addtopic = mysql_query($addtopicquery) or die("Failed to post");
-			$topicid = mysql_insert_id();
+
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_TOPICS(GROUP_ID, TOPIC_TITLE, TOPIC_SEQ_NO,
+                                                   USERNAME_WHO_CREATES, CREATED_DATE_TIME)
+							                       VALUES(?, ?, ?, ?, NOW())");
+            mysqli_stmt_bind_param($stmt, 'isis', $groupid, $topictitle, $sequencenumber, $username);
+            mysqli_stmt_execute($stmt);
+            $addtopic = mysqli_stmt_get_result($stmt) or die("Failed to post");
+            $topicid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			
 			if(isset($topicid)) {
 				print '<meta http-equiv="refresh" content="0;url=./groupTopics.php?">';
@@ -146,20 +160,23 @@ if(isset($_SESSION['groupid'])) {
 	
 	if(isset($_GET['delete'])) {
 		$topicid = $_GET['delete'];
-		
-		$findcreatorquery = "SELECT GROUP_CREATED_BY FROM MT_GROUPS WHERE
-						   	 GROUP_ID IN(SELECT GROUP_ID FROM MT_TOPICS WHERE 
-						     TOPIC_ID = '$topicid')";
-		$findcreator = mysql_query($findcreatorquery);
-		
-		$groupcreator = mysql_fetch_row($findcreator);
+        $stmt = mysqli_prepare($dbconnection, "SELECT GROUP_CREATED_BY FROM MT_GROUPS WHERE
+						   	                   GROUP_ID IN(SELECT GROUP_ID FROM MT_TOPICS WHERE
+						                       TOPIC_ID = ?)");
+        mysqli_stmt_bind_param($stmt, 'i', $topicid);
+        mysqli_stmt_execute($stmt);
+        $findcreator = mysqli_stmt_get_result($stmt) or die('Failed to find creator');
+        mysqli_stmt_close($stmt);
+		$groupcreator = mysqli_fetch_row($findcreator);
 		
 		if($username == $groupcreator[0]) {
-			$deletetopicquery = "DELETE FROM MT_TOPICS WHERE
-								 TOPIC_ID = '$topicid'";
-			$deletetopic = mysql_query($deletetopicquery);
-			$deletetopicid = mysql_insert_id();
-			
+            $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_TOPICS WHERE TOPIC_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $topicid);
+            mysqli_stmt_execute($stmt);
+            $deletetopic = mysqli_stmt_get_result($stmt) or die('Failed to delete topic');
+            $deletetopicid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
+
 			if(isset($deletetopicid)) {
 				print '<meta http-equiv="refresh" content="0;url=./groupTopics.php?">';
 			}			
@@ -176,12 +193,14 @@ if(isset($_SESSION['groupid'])) {
 	
 	<div class="center">
 	<table>
-	<?php 
-	$topicsequencequery = sprintf("SELECT MAX(TOPIC_SEQ_NO) FROM MT_TOPICS WHERE
-								   GROUP_ID = '$groupid'");
-	
-	$topicsequence = mysql_query($topicsequencequery) or die('Failed to check sequence number');
-	$maxtopicsequence = mysql_fetch_row($topicsequence);
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT MAX(TOPIC_SEQ_NO) FROM MT_TOPICS WHERE GROUP_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $groupid);
+    mysqli_stmt_execute($stmt);
+    $topicsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+    mysqli_stmt_close($stmt);
+
+	$maxtopicsequence = mysqli_fetch_row($topicsequence);
 	
 	if($maxtopicsequence[0] != NULL) {
 		$extra = $maxtopicsequence % 10; 

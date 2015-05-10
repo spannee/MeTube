@@ -32,14 +32,15 @@ if(isset($_POST["signin"])) {
 
 	$username=$_POST["username"];
 	$password=md5($_POST['password']);
+
+    $stmt = mysqli_prepare($dbconnection, 'SELECT * FROM MT_USER WHERE USERNAME = ? AND PASSWORD = ?');
+    mysqli_stmt_bind_param($stmt, 'ss', $username, $password);
+    mysqli_stmt_execute($stmt);
+    $loginuser = mysqli_stmt_get_result($stmt) or die('Failed to login');
+    mysqli_stmt_close($stmt);
 	
-	$login = sprintf("SELECT * FROM MT_USER WHERE
-		     		  USERNAME = '$username' AND 
-	          		  PASSWORD = '$password'");
-	$loginuser = mysql_query($login) or die('Failed to login');
-	
-	if((mysql_num_rows($loginuser)) == 1) {
-		$userdetails = mysql_fetch_row($loginuser);
+	if((mysqli_num_rows($loginuser)) == 1) {
+		$userdetails = mysqli_fetch_row($loginuser);
 		session_start();
 		$_SESSION['username'] = $userdetails[0];
 		$loginsucess = TRUE;

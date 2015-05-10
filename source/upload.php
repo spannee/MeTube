@@ -139,54 +139,29 @@ if(isset($_POST['upload'])) {
 				}		
 			
 				dbConnect();
-			
-				$insertmedia = "INSERT INTO MT_CONTENT(
-								USERNAME,
- 								CONTENT_TITLE, 
-  								CONTENT_TYPE,
-  								CONTENT_LOCATION, 
-  								CONTENT_FORMAT,
-  								CONTENT_DESCRIPTION, 
-  								CONTENT_CATEGORY,
-  								CONTENT_SHARING, 
-  								CONTENT_RATING, 
-  								RATING_ENABLED,
-  								LIKES,
-  								DISLIKES, 
-  								VIEW_COUNT,
-  								UPLOAD_DATE) 
-  								VALUES(
-								'$username',
-								'$title',
-								'$filetype',
-								'$dbinsertpath',
-								'$fileextension',
-								'$description',
-								'$filecategory',
-								'$filePrivacy',
-								'0',
-								'$fileRatingEnabled',
-								'0',
-								'0',
-								'0',
-								NOW())";
-				
-				$insertfile = mysql_query($insertmedia) or die("Failed to upload media");
-				$fileid = mysql_insert_id();
+
+                $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CONTENT(USERNAME, CONTENT_TITLE, CONTENT_TYPE,
+  								                       CONTENT_LOCATION, CONTENT_FORMAT, CONTENT_DESCRIPTION,
+  								                       CONTENT_CATEGORY, CONTENT_SHARING, CONTENT_RATING, RATING_ENABLED,
+  								                       LIKES, DISLIKES, VIEW_COUNT, UPLOAD_DATE)
+  								                       VALUES(?, ?, ?, ?, ?, ?, ?, ?, '0', ?, '0', '0', '0', NOW())");
+                mysqli_stmt_bind_param($stmt, 'ssssssss', $username, $title, $filetype, $dbinsertpath, $fileextension,
+                                                        $description, $filecategory, $filePrivacy, $fileRatingEnabled);
+                mysqli_stmt_execute($stmt);
+                $insertfile = mysqli_stmt_get_result($stmt) or die("Failed to upload media");
+                $fileid = mysqli_insert_id($dbconnection);
+                mysqli_stmt_close($stmt);
 			
 				if(!isset($fileid)) {
 					die("Failed to upload media");
 				} else {
 					$mediauploaded = 1;
-				
-					$inserttags = "INSERT INTO MT_CONTENT_TAGS
-								  (CONTENT_ID,
-								  TAGS)
-								  VALUES(
-								  '$fileid',
-								  '$tags')";
-					
-					$insertkeywords = mysql_query($inserttags) or die("Failed to upload keywords");
+
+                    $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CONTENT_TAGS (CONTENT_ID, TAGS) VALUES(?, ?)");
+                    mysqli_stmt_bind_param($stmt, 'is', $fileid, $tags);
+                    mysqli_stmt_execute($stmt);
+                    $insertkeywords = mysqli_stmt_get_result($stmt) or die("Failed to upload keywords");
+                    mysqli_stmt_close($stmt);
 					
 					if(!isset($insertkeywords)) {
 						die("Failed to upload keywords");

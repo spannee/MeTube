@@ -68,16 +68,19 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	<tr><td>  <input type="submit" name="subscriptions" value="Subscriptions" style="background:none;border:0;color:#4C4646;font-size: 16px;"/> </td></tr>
 	<tr><td> <input type="submit" name="createplaylist" value="Create a Playlist" style="background:none;border:0;color:#4C4646;font-size: 16px;"/> </td></tr>
 		
-	<?php 
-		$loadplaylistsquery = sprintf("SELECT PLAYLIST_ID, PLAYLIST_NAME
-							  	  	   FROM MT_USER_PLAYLIST WHERE
-								  	   USERNAME = '$username'");
-		$loadplaylists = mysql_query($loadplaylistsquery) or die('Failed to load playlists');
-		if((mysql_num_rows($loadplaylists)) > 0) {
+	<?php
+        $stmt = mysqli_prepare($dbconnection, "SELECT PLAYLIST_ID, PLAYLIST_NAME FROM MT_USER_PLAYLIST
+                                               WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 's', $username);
+        mysqli_stmt_execute($stmt);
+        $loadplaylists = mysqli_stmt_get_result($stmt) or die('Failed to load playlists');
+        mysqli_stmt_close($stmt);
+
+		if((mysqli_num_rows($loadplaylists)) > 0) {
 			echo "<tr><td>&nbsp;&nbsp;";
 			echo "<select name='playlists' id='playlists'>"; 
 			echo "<option value='0'>Select Playlist</option>";
-			while($playlistresult = mysql_fetch_array($loadplaylists)) {
+			while($playlistresult = mysqli_fetch_array($loadplaylists)) {
 				$playlistid = $playlistresult["PLAYLIST_ID"];
 				$playlistidentity = $playlistresult["PLAYLIST_NAME"];
 				echo "<option value='$playlistid'>$playlistidentity</option>";
@@ -106,11 +109,15 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	<tr></tr>
 	<tr></tr>
 	<tr><td> <strong><font size="4">&nbsp;Manage Friends</font></strong> </td></tr>
-	<?php 
-	$userscheckquery = sprintf("SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
-								USERNAME = '$username' AND IS_FRIEND = 'A'");
-	$userscheck = mysql_query($userscheckquery) or die('Failed to check friends');
-	if((mysql_num_rows($userscheck)) == 0) {	
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
+								           USERNAME = ? AND IS_FRIEND = 'A'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $userscheck = mysqli_stmt_get_result($stmt) or die('Failed to check friends');
+    mysqli_stmt_close($stmt);
+
+	if((mysqli_num_rows($userscheck)) == 0) {
 	?>
 	<tr><td> <input type="submit" name="friendrequests" value="Friend Requests" style="background:none;border:0;color:#4C4646;font-size: 16px;"/> </td></tr>
 	<?php 
@@ -121,11 +128,15 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	}
 	?>
 	<tr><td> <input type="submit" name="searchfriend" value="Search Friends" style="background:none;border:0;color:#4C4646;font-size: 16px;"/> </td></tr>
-	<?php 
-	$unreadmessagequery = sprintf("SELECT FROM_USERNAME FROM MT_USER_MESSAGES WHERE
-								   TO_USERNAME = '$username' AND IS_MESSAGE_VIEWED = 'N'");
-	$unreadmessages = mysql_query($unreadmessagequery) or die('Failed to check unread messages');
-	if(mysql_num_rows($unreadmessages) == 0) {
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT FROM_USERNAME FROM MT_USER_MESSAGES WHERE
+								           TO_USERNAME = ? AND IS_MESSAGE_VIEWED = 'N'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $unreadmessages = mysqli_stmt_get_result($stmt) or die('Failed to check unread messages');
+    mysqli_stmt_close($stmt);
+
+	if(mysqli_num_rows($unreadmessages) == 0) {
 	?>
 	<tr><td> <input type="submit" name="chat" value="Chat" style="background:none;border:0;color:#4C4646;font-size: 16px;"/> </td></tr>
 	<?php 

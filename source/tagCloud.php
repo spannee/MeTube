@@ -73,13 +73,15 @@ dbConnect();
 
 <?php
 $tags = array(); 
-$maximum = 0; 
+$maximum = 0;
 
-$cloudquery = sprintf("SELECT TAGS, COUNTER FROM MT_TAGS ORDER BY COUNTER DESC LIMIT 30");
-$cloud = mysql_query($cloudquery);
+$stmt = mysqli_prepare($dbconnection, "SELECT TAGS, COUNTER FROM MT_TAGS ORDER BY COUNTER DESC LIMIT 30");
+mysqli_stmt_execute($stmt);
+$cloud = mysqli_stmt_get_result($stmt) or die('Failed to load tag cloud');
+mysqli_stmt_close($stmt);
 
-if(mysql_num_rows($cloud) > 0) {
-	while ($row = mysql_fetch_array($cloud)) {
+if(mysqli_num_rows($cloud) > 0) {
+	while ($row = mysqli_fetch_array($cloud)) {
 		$tag = $row['TAGS'];
 		$counter = $row['COUNTER'];
 	

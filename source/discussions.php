@@ -56,12 +56,16 @@ if(isset($_GET['topic_id'])) {
 	if(isset($_POST['index'])) {
 		$indexvalue = $_POST['index'];
 		$startindex = ($indexvalue * 5) - 5;
-		$discussionreplyquery = sprintf("SELECT * FROM MT_DISCUSSION WHERE
-									     TOPIC_ID = '$topicid' LIMIT $startindex,5 ");
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_DISCUSSION WHERE
+									           TOPIC_ID = ? LIMIT ?,5 ");
+        mysqli_stmt_bind_param($stmt, 'ii', $topicid, $startindex);
 	} else {
-		$discussionreplycountquery = sprintf("SELECT COUNT(TOPIC_ID) FROM MT_DISCUSSION WHERE TOPIC_ID = '$topicid' ");
-		$discussionreplycount = mysql_query($discussionreplycountquery) or die('Failed to check count');
-		$maxdiscussionreplycount = mysql_fetch_row($discussionreplycount);
+        $stmt = mysqli_prepare($dbconnection, "SELECT COUNT(TOPIC_ID) FROM MT_DISCUSSION WHERE TOPIC_ID = ? ");
+        mysqli_stmt_bind_param($stmt, 'i', $topicid);
+        mysqli_stmt_execute($stmt);
+        $discussionreplycount = mysqli_stmt_get_result($stmt) or die('Failed to check count');
+        mysqli_stmt_close($stmt);
+		$maxdiscussionreplycount = mysqli_fetch_row($discussionreplycount);
 		if($maxdiscussionreplycount[0] != 0) {
 			$required = $maxdiscussionreplycount[0] % 5;
 			
@@ -73,16 +77,19 @@ if(isset($_GET['topic_id'])) {
 		} else {
 			$shown = 5;
 		}
-		
-		$discussionreplyquery = sprintf("SELECT * FROM (SELECT * FROM MT_DISCUSSION WHERE
- 										 TOPIC_ID = '$topicid' ORDER BY CONTENT_REPLIED_TIMESTAMP DESC
-     									 LIMIT $shown) AS LAST_DISCUSSION ORDER BY CONTENT_REPLIED_TIMESTAMP");	
+
+        $stmt = mysqli_prepare($dbconnection, "SELECT * FROM (SELECT * FROM MT_DISCUSSION WHERE
+ 										       TOPIC_ID = ? ORDER BY CONTENT_REPLIED_TIMESTAMP DESC
+                                               LIMIT ?) AS LAST_DISCUSSION ORDER BY CONTENT_REPLIED_TIMESTAMP");
+        mysqli_stmt_bind_param($stmt, 'ii', $topicid, $shown);
 	} 
 	
-	if(isset($discussionreplyquery)) {
-		$discussionreply = mysql_query($discussionreplyquery) or die('Failed to retrieve discussion comment');
-		if(mysql_num_rows($discussionreply) > 0) {
-			while($discussionreplyresult = mysql_fetch_array($discussionreply)) {
+	if(isset($stmt)) {
+        mysqli_stmt_execute($stmt);
+        $discussionreply = mysqli_stmt_get_result($stmt) or die('Failed to retrieve discussion comment');
+        mysqli_stmt_close($stmt);
+		if(mysqli_num_rows($discussionreply) > 0) {
+			while($discussionreplyresult = mysqli_fetch_array($discussionreply)) {
 				echo '<tr></tr>';
 				echo '<tr></tr>';
 				echo '<tr></tr>';
@@ -123,22 +130,29 @@ if(isset($_GET['topic_id'])) {
 		$forumcomment = $_POST['forumcomment'];
 		
 		if($forumcomment != NULL) {
-			$commentsequencequery = sprintf("SELECT MAX(DISCUSSION_REPLIES_SEQ_NO) FROM MT_DISCUSSION WHERE
-									 		 TOPIC_ID = '$topicid'");
-		
-			$commentsequence = mysql_query($commentsequencequery) or die('Failed to check sequence number');
-			$maxcommentsequence = mysql_fetch_row($commentsequence);
+            $stmt = mysqli_prepare($dbconnection, "SELECT MAX(DISCUSSION_REPLIES_SEQ_NO) FROM MT_DISCUSSION WHERE
+									 		       TOPIC_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $topicid);
+            mysqli_stmt_execute($stmt);
+            $commentsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+            mysqli_stmt_close($stmt);
+			$maxcommentsequence = mysqli_fetch_row($commentsequence);
 			if($maxcommentsequence[0] != NULL) {
 				$sequencenumber = $maxcommentsequence[0] + 1;				
 			} else {
 				$sequencenumber = 1;
 			}
-		
-			$addcommentquery = "INSERT INTO MT_DISCUSSION(TOPIC_ID, DISCUSSION_REPLIES, DISCUSSION_REPLIES_SEQ_NO, USERNAME_WHO_REPLIES, CONTENT_REPLIED_TIMESTAMP)
-							 	VALUES('$topicid', '$forumcomment', '$sequencenumber', '$username', NOW())";
-			$addcomment = mysql_query($addcommentquery) or die("Failed to post");
-			$discussionid = mysql_insert_id();
-			
+
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_DISCUSSION(TOPIC_ID, DISCUSSION_REPLIES,
+                                                   DISCUSSION_REPLIES_SEQ_NO, USERNAME_WHO_REPLIES,
+                                                   CONTENT_REPLIED_TIMESTAMP)
+							 	                   VALUES(?, ?, ?, ?, NOW())");
+            mysqli_stmt_bind_param($stmt, 'isis', $topicid, $forumcomment, $sequencenumber, $username);
+            mysqli_stmt_execute($stmt);
+            $addcomment = mysqli_stmt_get_result($stmt) or die("Failed to post");
+            $discussionid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
+
 			if(isset($discussionid)) {
 				print '<meta http-equiv="refresh" content="0;url=./discussions.php?">';
 			}
@@ -147,25 +161,32 @@ if(isset($_GET['topic_id'])) {
 	
 	if(isset($_POST['delete'])) {
 		$discussionreplyid = $_POST['delete'];
-		
-		$findcreatorquery = "SELECT USERNAME_WHO_CREATES FROM MT_TOPICS WHERE
-						   	 TOPIC_ID IN(SELECT TOPIC_ID FROM MT_DISCUSSION WHERE 
-						     DISCUSSION_REPLIES_ID = '$discussionreplyid')";
-		$findcreator = mysql_query($findcreatorquery);
-		
-		$groupcreator = mysql_fetch_row($findcreator);
-		
-		$findposterquery = "SELECT USERNAME_WHO_REPLIES FROM MT_DISCUSSION WHERE
-							DISCUSSION_REPLIES_ID = '$discussionreplyid'";
-		$findposter = mysql_query($findposterquery);
-		
-		$poster = mysql_fetch_row($findposter);
+
+        $stmt = mysqli_prepare($dbconnection, "SELECT USERNAME_WHO_CREATES FROM MT_TOPICS WHERE
+						   	                   TOPIC_ID IN(SELECT TOPIC_ID FROM MT_DISCUSSION WHERE
+						                       DISCUSSION_REPLIES_ID = ?)");
+        mysqli_stmt_bind_param($stmt, 'i', $discussionreplyid);
+        mysqli_stmt_execute($stmt);
+        $findcreator = mysqli_stmt_get_result($stmt) or die('Failed to find creator');
+        mysqli_stmt_close($stmt);
+		$groupcreator = mysqli_fetch_row($findcreator);
+
+        $stmt = mysqli_prepare($dbconnection, "SELECT USERNAME_WHO_REPLIES FROM MT_DISCUSSION WHERE
+							                   DISCUSSION_REPLIES_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'i', $discussionreplyid);
+        mysqli_stmt_execute($stmt);
+        $findposter = mysqli_stmt_get_result($stmt) or die('Failed to find poster');
+        mysqli_stmt_close($stmt);
+		$poster = mysqli_fetch_row($findposter);
 		
 		if($username == $groupcreator[0] || $username == $poster[0]) {
-			$deletecommentquery = "DELETE FROM MT_DISCUSSION WHERE
-								   DISCUSSION_REPLIES_ID = '$discussionreplyid'";
-			$deletecomment = mysql_query($deletecommentquery);
-			$deletecommentid = mysql_insert_id();
+            $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_DISCUSSION WHERE
+                                                   DISCUSSION_REPLIES_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $discussionreplyid);
+            mysqli_stmt_execute($stmt);
+            $deletecomment = mysqli_stmt_get_result($stmt) or die('Failed to delete comment');
+            $deletecommentid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			
 			if(isset($deletecommentid)) {
 				print '<meta http-equiv="refresh" content="0;url=./discussions.php?">';
@@ -183,12 +204,14 @@ if(isset($_GET['topic_id'])) {
 	
 	<div class="center">
 	<table>
-	<?php 
-	$commentsequencequery = sprintf("SELECT MAX(DISCUSSION_REPLIES_SEQ_NO) FROM MT_DISCUSSION WHERE
-									 TOPIC_ID = '$topicid'");
-	
-	$commentsequence = mysql_query($commentsequencequery) or die('Failed to check sequence number');
-	$maxcommentsequence = mysql_fetch_row($commentsequence);
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT MAX(DISCUSSION_REPLIES_SEQ_NO) FROM MT_DISCUSSION WHERE
+									       TOPIC_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $topicid);
+    mysqli_stmt_execute($stmt);
+    $commentsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+    mysqli_stmt_close($stmt);
+	$maxcommentsequence = mysqli_fetch_row($commentsequence);
 	
 	if($maxcommentsequence[0] != NULL) {
 		$extra = $maxcommentsequence % 5; 

@@ -49,20 +49,19 @@ if(isset($_GET['uploadsofothers'])) {
 	if($mediatypeforchannel == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$uploadsearch = sprintf("SELECT CONTENT_ID,
-								 CONTENT_TITLE,
-								 CONTENT_LOCATION
-								 FROM MT_CONTENT WHERE
-								 USERNAME = '$contentowner' AND
-								 CONTENT_TYPE = '$mediatypeforchannel'");
-		$search = mysql_query($uploadsearch) or die('Failed to search uploads');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION FROM MT_CONTENT WHERE
+								               USERNAME = ? AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $mediatypeforchannel);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search uploads');
+        mysqli_stmt_close($stmt);
 
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			echo "<br/>";
 			echo "<br/>";
 			echo "<table style='margin-left:300px;'>";
 			$othersprofile = 1;
-			while($searchresult = mysql_fetch_array($search)) {
+			while($searchresult = mysqli_fetch_array($search)) {
 				$contentid = $searchresult["CONTENT_ID"];
 				$contenttitle = $searchresult["CONTENT_TITLE"];
 				echo "<tr><td><a href='./userUploadsView.php?content_id=".$contentid."&media_type=".$mediatypeforchannel."&others_profile=".$othersprofile."'><img src='fileUploads/image/photo.jpg' height=90 width=170/></a></td>";
@@ -86,25 +85,27 @@ if(isset($_GET['uploadsofothers'])) {
 		$mediatypeerror = 1;
 	} else {
 		$contentidsinfavorites = array();
-		$favoritessearch = sprintf("SELECT CONTENT_ID
-									       FROM MT_USER_FAVOURITES WHERE
-									       USERNAME = '$contentowner' AND
-										   FAVORITES_TYPE = '$mediatype'");
-		$favoritessearchquery = mysql_query($favoritessearch) or die('Failed to search favorites');
-		while($favoritesearchresults = mysql_fetch_array($favoritessearchquery)) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_USER_FAVOURITES WHERE
+									           USERNAME = ? AND FAVORITES_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $mediatype);
+        mysqli_stmt_execute($stmt);
+        $favoritessearch = mysqli_stmt_get_result($stmt) or die('Failed to search favorites');
+        mysqli_stmt_close($stmt);
+
+		while($favoritesearchresults = mysqli_fetch_array($favoritessearch)) {
 			$contentidsinfavorites[] = $favoritesearchresults["CONTENT_ID"];
 		}
 		if(!empty($contentidsinfavorites)) { 	
 			foreach ($contentidsinfavorites as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-												 CONTENT_TITLE,
-												 CONTENT_LOCATION
-												 FROM MT_CONTENT WHERE
-												 CONTENT_TYPE = '$mediatype' AND
-												 CONTENT_ID = '$id' AND 
-												 CONTENT_SHARING != 'P'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search favorite content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+												       FROM MT_CONTENT WHERE CONTENT_TYPE = ? AND
+												       CONTENT_ID = ? AND CONTENT_SHARING != 'P'");
+                mysqli_stmt_bind_param($stmt, 'si', $mediatype, $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search favorite content');
+                mysqli_stmt_close($stmt);
+
+				while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -137,23 +138,26 @@ if(isset($_GET['uploadsofothers'])) {
 		echo '</script>';
 	} else {
 		$contentidsinplaylists = array();
-		$playlistsearch = sprintf("SELECT CONTENT_ID
-								   FROM MT_PLAYLIST_CONTENT WHERE
-								   PLAYLIST_ID = '$playlistnumber'");
-		$playlistsearchquery = mysql_query($playlistsearch) or die('Failed to search playlist');
-		while($playlistsearchresults = mysql_fetch_array($playlistsearchquery)) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_PLAYLIST_CONTENT WHERE PLAYLIST_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'i', $playlistnumber);
+        mysqli_stmt_execute($stmt);
+        $playlistsearch = mysqli_stmt_get_result($stmt) or die('Failed to search playlist');
+        mysqli_stmt_close($stmt);
+
+		while($playlistsearchresults = mysqli_fetch_array($playlistsearch)) {
 			$contentidsinplaylists[] = $playlistsearchresults["CONTENT_ID"];
 		}
 		if(!empty($contentidsinplaylists)) { 	
 			foreach ($contentidsinplaylists as $id) {
-				$contentsearch = sprintf("SELECT CONTENT_ID,
-												 CONTENT_TITLE,
-												 CONTENT_LOCATION
-												 FROM MT_CONTENT WHERE
-												 CONTENT_ID = '$id' AND 
-												 CONTENT_SHARING != 'P'");
-				$valuecontentquery = mysql_query($contentsearch) or die('Failed to search playlist content');
-				while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+                $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+												       FROM MT_CONTENT WHERE CONTENT_ID = ?
+												       AND CONTENT_SHARING != 'P'");
+                mysqli_stmt_bind_param($stmt, 'i', $id);
+                mysqli_stmt_execute($stmt);
+                $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search playlist content');
+                mysqli_stmt_close($stmt);
+
+				while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 					$contentids[] = $contentsearchresults["CONTENT_ID"];
 					$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 				}
@@ -177,18 +181,24 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	
-	$requestfriendsquery = "INSERT INTO MT_USER_CONTACTS 
-							(USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
-							VALUES('$username', '$contentowner', 'G', 'N')";	
-	$requestfriends = mysql_query($requestfriendsquery) or die("Failed to add friends");
-	$gaverequestid = mysql_insert_id();
-	
-	$approvefriendsquery = "INSERT INTO MT_USER_CONTACTS
-							(USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
-							VALUES('$contentowner', '$username', 'A', 'N')";
-	$approvefriends = mysql_query($approvefriendsquery) or die("Failed to add friends");
-	$approverequestid = mysql_insert_id();
+
+    $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_CONTACTS
+							               (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
+							               VALUES(?, ?, 'G', 'N')");
+    mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+    mysqli_stmt_execute($stmt);
+    $requestfriends = mysqli_stmt_get_result($stmt) or die("Failed to add friends");
+    $gaverequestid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
+
+    $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_CONTACTS
+							               (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
+							               VALUES(?, ?, 'A', 'N')");
+    mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+    mysqli_stmt_execute($stmt);
+    $approvefriends = mysqli_stmt_get_result($stmt) or die("Failed to add friends");
+    $approverequestid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
 	
 	if(isset($gaverequestid) && isset($approverequestid)) {
 		echo '<script type="text/javascript">';
@@ -203,16 +213,20 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	
-	$deletefriendsquery = "DELETE FROM MT_USER_CONTACTS WHERE
-					       USERNAME = '$username'";
-	$deletefriends = mysql_query($deletefriendsquery) or die("Failed to delete friends");
-	$gaverequestid = mysql_insert_id();
-	
-	$deletefriendsquery = "DELETE FROM MT_USER_CONTACTS WHERE
-						   USERNAME = '$contentowner'";
-	$deletefriends = mysql_query($deletefriendsquery) or die("Failed to delete friends");
-	$removerequestid = mysql_insert_id();
+
+    $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_USER_CONTACTS WHERE USERNAME = ?");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $deletefriends = mysqli_stmt_get_result($stmt) or die("Failed to delete friends");
+    $gaverequestid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
+
+    $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_USER_CONTACTS WHERE USERNAME = ?");
+    mysqli_stmt_bind_param($stmt, 's', $contentowner);
+    mysqli_stmt_execute($stmt);
+    $deletefriends = mysqli_stmt_get_result($stmt) or die("Failed to delete friends");
+    $removerequestid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
 	
 	if(isset($gaverequestid) && isset($removerequestid)) {
 		echo '<script type="text/javascript">';
@@ -227,18 +241,23 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	
-	$updatefriendsquery = "UPDATE MT_USER_CONTACTS SET IS_FRIEND='Y' WHERE
-						   USERNAME = '$username' AND 
-						   USER_CONTACT_ID = '$contentowner'";
-	$updatefriends = mysql_query($updatefriendsquery) or die("Failed to approve request");
-	$approveid = mysql_insert_id();	
 
-	$updatefriendsquery = "UPDATE MT_USER_CONTACTS SET IS_FRIEND='Y' WHERE
-						   USERNAME = '$contentowner' AND
-						   USER_CONTACT_ID = '$username'";
-	$updatefriends = mysql_query($updatefriendsquery) or die("Failed to approve request");
-	$getapproveid = mysql_insert_id();
+    $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS SET IS_FRIEND='Y' WHERE
+						                   USERNAME = ? AND USER_CONTACT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+    mysqli_stmt_execute($stmt);
+    $updatefriends = mysqli_stmt_get_result($stmt) or die("Failed to approve request");
+    $approveid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
+
+    $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS SET IS_FRIEND='Y' WHERE
+						                   USERNAME = ? AND USER_CONTACT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+    mysqli_stmt_execute($stmt);
+    $updatefriends = mysqli_stmt_get_result($stmt) or die("Failed to approve request");
+    $getapproveid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
+
 	if(isset($approveid) && isset($getapproveid)) {
 		echo '<script type="text/javascript">';
 		echo 'alert("The request has been be approved")';
@@ -252,25 +271,31 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	
-	$friendcheck = sprintf("SELECT *  FROM
-							MT_USER_CONTACTS WHERE
-							USERNAME = '$username' AND
-							USER_CONTACT_ID = '$contentowner'");
-	$check = mysql_query($friendcheck) or die('Failed to check friends');
-	
-	if((mysql_num_rows($check)) > 0) {
-		$blockfriendsquery = "UPDATE MT_USER_CONTACTS SET IS_FRIEND='N', IS_BLOCKED='Y' WHERE
-						  	  USERNAME = '$username' AND 
-						  	  USER_CONTACT_ID = '$contentowner'";
-		$blockfriends = mysql_query($blockfriendsquery) or die("Failed to block");
-		$blockfromid = mysql_insert_id();	
 
-		$blockfriendsquery = "UPDATE MT_USER_CONTACTS SET IS_FRIEND='N', IS_BLOCKED='Y' WHERE
-						  	  USERNAME = '$contentowner' AND
-						  	  USER_CONTACT_ID = '$username'";
-		$blockfriends = mysql_query($blockfriendsquery) or die("Failed to block");
-		$blocktoid = mysql_insert_id();
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER_CONTACTS WHERE
+							               USERNAME = ? AND USER_CONTACT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+    mysqli_stmt_execute($stmt);
+    $check = mysqli_stmt_get_result($stmt) or die('Failed to check friends');
+    mysqli_stmt_close($stmt);
+	
+	if((mysqli_num_rows($check)) > 0) {
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS SET IS_FRIEND='N', IS_BLOCKED='Y' WHERE
+						  	                   USERNAME = ? AND USER_CONTACT_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+        mysqli_stmt_execute($stmt);
+        $blockfriends = mysqli_stmt_get_result($stmt) or die("Failed to block");
+        $blockfromid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS SET IS_FRIEND='N', IS_BLOCKED='Y' WHERE
+						  	                   USERNAME = ? AND USER_CONTACT_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+        mysqli_stmt_execute($stmt);
+        $blockfriends = mysqli_stmt_get_result($stmt) or die("Failed to block");
+        $blocktoid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(isset($blockfromid) && isset($blocktoid)) {
 			print '<meta http-equiv="refresh" content="0;url=./index.php?">';
 		} else {
@@ -279,17 +304,23 @@ if(isset($_GET['uploadsofothers'])) {
 			echo '</script>';
 		}
 	} else {
-		$blockfriendsquery = "INSERT INTO MT_USER_CONTACTS
-							  (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
-							  VALUES('$username', '$contentowner', 'N', 'Y')";
-		$blockfriends = mysql_query($blockfriendsquery) or die("Failed to block");
-		$blockfromid = mysql_insert_id();
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_CONTACTS
+							                   (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
+							                   VALUES(?, ?, 'N', 'Y')");
+        mysqli_stmt_bind_param($stmt, 'ss', $username, $contentowner);
+        mysqli_stmt_execute($stmt);
+        $blockfriends = mysqli_stmt_get_result($stmt) or die("Failed to block");
+        $blockfromid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
 
-		$blockfriendsquery = "INSERT INTO MT_USER_CONTACTS
-							  (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
-							  VALUES('$contentowner', '$username', 'N', 'Y')";
-		$blockfriends = mysql_query($blockfriendsquery) or die("Failed to block");
-		$blocktoid = mysql_insert_id();
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_CONTACTS
+							                   (USERNAME, USER_CONTACT_ID, IS_FRIEND, IS_BLOCKED)
+							                   VALUES(?, ?, 'N', 'Y')");
+        mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+        mysqli_stmt_execute($stmt);
+        $blockfriends = mysqli_stmt_get_result($stmt) or die("Failed to block");
+        $blocktoid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
 		
 		if(isset($blockfromid) && isset($blocktoid)) {
 			print '<meta http-equiv="refresh" content="0;url=./index.php?">';
@@ -303,23 +334,26 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	$subscriptioncheck = sprintf("SELECT *  FROM
-			MT_CHANNEL_SUBSCRIBERS WHERE
-			CHANNEL_ID = '$contentowner' AND
-			USERNAME = '$username'");
-	$check = mysql_query($subscriptioncheck) or die('Failed to check subscription');
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_CHANNEL_SUBSCRIBERS WHERE
+			                               CHANNEL_ID = ? AND USERNAME = ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+    mysqli_stmt_execute($stmt);
+    $check = mysqli_stmt_get_result($stmt) or die('Failed to check subscription');
+    mysqli_stmt_close($stmt);
 	
-	if(mysql_num_rows($check) > 0) {
+	if(mysqli_num_rows($check) > 0) {
 		echo '<script type="text/javascript">';
 		echo 'alert("Already Subscribed")';
 		echo '</script>';
-	} else  {	
-		$subscribequery = "INSERT INTO MT_CHANNEL_SUBSCRIBERS
-						   (CHANNEL_ID, USERNAME) VALUES
-						   ('$contentowner', '$username')";
-		$subscribe = mysql_query($subscribequery) or die("Failed to suscribe");
-		$subscribeid = mysql_insert_id();	
-	
+	} else  {
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CHANNEL_SUBSCRIBERS (CHANNEL_ID, USERNAME) VALUES (?, ?)");
+        mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+        mysqli_stmt_execute($stmt);
+        $subscribe = mysqli_stmt_get_result($stmt) or die('Failed to subscribe');
+        $subscribeid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
+
 		if(isset($subscribeid)) {
 			echo '<script type="text/javascript">';
 			echo 'alert("Subscribed")';
@@ -334,12 +368,14 @@ if(isset($_GET['uploadsofothers'])) {
 	echo "<div>";
 	include("./othersChannelHeader.php");
 	echo "</div>";
-	
-	$unsubscribequery = "DELETE FROM MT_CHANNEL_SUBSCRIBERS
-					   	 WHERE CHANNEL_ID = '$contentowner'
-					     AND USERNAME = '$username'";
-	$unsubscribe = mysql_query($unsubscribequery) or die("Failed to unsubscribe");
-	$unsubscribeid = mysql_insert_id();	
+
+    $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_CHANNEL_SUBSCRIBERS WHERE CHANNEL_ID = ?
+					                       AND USERNAME = ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $contentowner, $username);
+    mysqli_stmt_execute($stmt);
+    $unsubscribe = mysqli_stmt_get_result($stmt) or die('Failed to unsubscribe');
+    $unsubscribeid = mysqli_insert_id($dbconnection);
+    mysqli_stmt_close($stmt);
 	
 	if(isset($unsubscribeid)) {
 		echo '<script type="text/javascript">';
