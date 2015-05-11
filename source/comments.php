@@ -38,12 +38,17 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 if(isset($_POST['index'])) {
 	$indexvalue = $_POST['index'];
 	$startindex = ($indexvalue * 10) - 10;
-	$commentquery = sprintf("SELECT * FROM MT_CONTENT_COMMENTS WHERE
-							 CONTENT_ID = '$id' LIMIT $startindex,10 ");
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_CONTENT_COMMENTS WHERE
+                                           CONTENT_ID = ? LIMIT ?,10");
+    mysqli_stmt_bind_param($stmt, 'ii', $id, $startindex);
 } else {
-	$commentcountquery = sprintf("SELECT COUNT(CONTENT_ID) FROM MT_CONTENT_COMMENTS WHERE CONTENT_ID = '$id' ");
-	$commentcount = mysql_query($commentcountquery) or die('Failed to check count');
-	$maxcommentcount = mysql_fetch_row($commentcount);
+    $stmt = mysqli_prepare($dbconnection, "SELECT COUNT(CONTENT_ID) FROM MT_CONTENT_COMMENTS WHERE CONTENT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $id);
+    mysqli_stmt_execute($stmt);
+    $commentcount = mysqli_stmt_get_result($stmt) or die('Failed to check count');
+    mysqli_stmt_close($stmt);
+
+	$maxcommentcount = mysqli_fetch_row($commentcount);
 	if($maxcommentcount[0] != 0) {
 		$required = $maxcommentcount[0] % 10;
 		if($required == 0) {
@@ -54,16 +59,20 @@ if(isset($_POST['index'])) {
 	} else {
 		$shown = 10;
 	}
-		
-	$commentquery = sprintf("SELECT * FROM (SELECT * FROM MT_CONTENT_COMMENTS WHERE
- 							 CONTENT_ID = '$id' ORDER BY CONTENT_COMMENT_TIME DESC
-     						 LIMIT $shown) AS LAST_COMMENT ORDER BY CONTENT_COMMENT_TIME");	
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM (SELECT * FROM MT_CONTENT_COMMENTS WHERE
+ 							               CONTENT_ID = ? ORDER BY CONTENT_COMMENT_TIME DESC
+     						               LIMIT ?) AS LAST_COMMENT ORDER BY CONTENT_COMMENT_TIME");
+    mysqli_stmt_bind_param($stmt, 'ii', $id, $shown);
 } 
 
-if(isset($commentquery)) {
-	$commentrequired = mysql_query($commentquery) or die('Failed to retrieve comment');
-	if(mysql_num_rows($commentrequired) > 0) {
-		while($commentresult = mysql_fetch_array($commentrequired)) {
+if(isset($stmt)) {
+    mysqli_stmt_execute($stmt);
+    $commentrequired = mysqli_stmt_get_result($stmt) or die('Failed to retrieve comment');
+    mysqli_stmt_close($stmt);
+
+    if(mysqli_num_rows($commentrequired) > 0) {
+		while($commentresult = mysqli_fetch_array($commentrequired)) {
 			$commenttabelid = $commentresult["CONTENT_COMMENT_ID"];
 			$commentsequenceno = $commentresult["CONTENT_COMMENT_SEQ_NO"];
 			$commentposter = $commentresult["USERNAME"];
@@ -83,14 +92,18 @@ if(isset($commentquery)) {
 			echo $commenttabelid;
      		echo '" class="stylish-link"/>Reply</button>';
 			echo '</tr>';
-			
-			$replyquery = sprintf("SELECT * FROM (SELECT * FROM MT_CONTENT_COMMENT_REPLY WHERE
-								   CONTENT_ID = '$id' AND CONTENT_COMMENT_ID = '$commenttabelid'
-								   ORDER BY CONTENT_REPLY_TIME DESC)
-								   AS LAST_REPLY ORDER BY CONTENT_REPLY_TIME");
-			$reply = mysql_query($replyquery) or die('Failed to retrieve reply');
-			if(mysql_num_rows($reply) > 0) {
-				while($replyresult = mysql_fetch_array($reply)) {
+
+            $stmt = mysqli_prepare($dbconnection, "SELECT * FROM (SELECT * FROM MT_CONTENT_COMMENT_REPLY WHERE
+								                   CONTENT_ID = ? AND CONTENT_COMMENT_ID = ?
+								                   ORDER BY CONTENT_REPLY_TIME DESC)
+								                   AS LAST_REPLY ORDER BY CONTENT_REPLY_TIME");
+            mysqli_stmt_bind_param($stmt, 'ii', $id, $commenttabelid);
+            mysqli_stmt_execute($stmt);
+            $reply = mysqli_stmt_get_result($stmt) or die('Failed to retrieve reply');
+            mysqli_stmt_close($stmt);
+
+			if(mysqli_num_rows($reply) > 0) {
+				while($replyresult = mysqli_fetch_array($reply)) {
 					$replyposter = $replyresult["USERNAME"];
 					$replydata = $replyresult["REPLY_DATA"];
 					echo '<tr>';
@@ -125,22 +138,28 @@ if(isset($_POST['postcomment'])) {
 		$comment = $_POST['comment'];
 		
 		if($comment != NULL) {
-			$commentsequencequery = sprintf("SELECT MAX(CONTENT_COMMENT_SEQ_NO) FROM MT_CONTENT_COMMENTS WHERE
-									 		 CONTENT_ID = '$id'");
-		
-			$commentsequence = mysql_query($commentsequencequery) or die('Failed to check sequence number');
-			$maxcommentsequence = mysql_fetch_row($commentsequence);
+            $stmt = mysqli_prepare($dbconnection, "SELECT MAX(CONTENT_COMMENT_SEQ_NO) FROM MT_CONTENT_COMMENTS WHERE
+									 		       CONTENT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $id);
+            mysqli_stmt_execute($stmt);
+            $commentsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+            mysqli_stmt_close($stmt);
+
+			$maxcommentsequence = mysqli_fetch_row($commentsequence);
 			if($maxcommentsequence[0] != NULL) {
 				$sequencenumber = $maxcommentsequence[0] + 1;				
 			} else {
 				$sequencenumber = 1;
 			}
-			
-			$commentindexquery = sprintf("SELECT CONTENT_INDEX FROM MT_CONTENT_COMMENTS WHERE
-										  CONTENT_ID = '$id' ORDER BY CONTENT_COMMENT_TIME DESC LIMIT 1");
-			
-			$commentindex = mysql_query($commentindexquery) or die('Failed to check index number');
-			$maxcommentindex = mysql_fetch_row($commentindex);
+
+            $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_INDEX FROM MT_CONTENT_COMMENTS WHERE
+										           CONTENT_ID = ? ORDER BY CONTENT_COMMENT_TIME DESC LIMIT 1");
+            mysqli_stmt_bind_param($stmt, 'i', $id);
+            mysqli_stmt_execute($stmt);
+            $commentindex = mysqli_stmt_get_result($stmt) or die('Failed to check index number');
+            mysqli_stmt_close($stmt);
+
+			$maxcommentindex = mysqli_fetch_row($commentindex);
 			if($maxcommentindex[0] == NULL) {
 				$indexnumber = 1;
 			} elseif($maxcommentindex[0] < 5) {
@@ -148,11 +167,14 @@ if(isset($_POST['postcomment'])) {
 			} elseif($maxcommentindex[0] == 5) {
 				$indexnumber = 1;
 			}
-			
-			$addcommentquery = "INSERT INTO MT_CONTENT_COMMENTS(CONTENT_ID, CONTENT_COMMENT_SEQ_NO, CONTENT_COMMENT_TIME, USERNAME, COMMENT_DATA, CONTENT_INDEX)
-							 	VALUES('$id', '$sequencenumber', NOW(), '$username', '$comment', '$indexnumber')";
-			$addcomment = mysql_query($addcommentquery) or die("Failed to post");
-			$commentid = mysql_insert_id();
+
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CONTENT_COMMENTS(CONTENT_ID, CONTENT_COMMENT_SEQ_NO, CONTENT_COMMENT_TIME, USERNAME, COMMENT_DATA, CONTENT_INDEX)
+							 	                   VALUES(?, ?, NOW(), ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, 'iissi', $id, $sequencenumber, $username, $comment, $indexnumber);
+            mysqli_stmt_execute($stmt);
+            $addcomment = mysqli_stmt_get_result($stmt) or die("Failed to post");
+            $commentid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			if(isset($commentid)) {
 				print '<META HTTP-EQUIV="refresh" CONTENT="15">';
 			}
@@ -167,24 +189,29 @@ if(isset($_POST['reply'])) {
 	$reply = $_POST['comment'];
 	$commentreplyid = $_POST['reply'];
 
-	if($reply != NULL) {		
-		$replysequencequery = sprintf("SELECT MAX(COMMENT_REPLY_SEQ_NO) FROM MT_CONTENT_COMMENT_REPLY WHERE
-									   CONTENT_ID = '$id' AND
-									   CONTENT_COMMENT_ID = '$commentreplyid'");
+	if($reply != NULL) {
+        $stmt = mysqli_prepare($dbconnection, "SELECT MAX(COMMENT_REPLY_SEQ_NO) FROM MT_CONTENT_COMMENT_REPLY WHERE
+									           CONTENT_ID = ? AND
+									           CONTENT_COMMENT_ID = ?");
+        mysqli_stmt_bind_param($stmt, 'ii', $id, $commentreplyid);
+        mysqli_stmt_execute($stmt);
+        $replysequence = mysqli_stmt_get_result($stmt) or die('Failed to check reply sequence number');
+        mysqli_stmt_close($stmt);
 
-		$replysequence = mysql_query($replysequencequery) or die('Failed to check reply sequence number');
-		$maxreplysequence = mysql_fetch_row($replysequence);
+		$maxreplysequence = mysqli_fetch_row($replysequence);
 		if($maxreplysequence[0] != NULL) {
 			$replysequencenumber = $maxreplysequence[0] + 1;
 		} else {
 			$replysequencenumber = 1;
 		}
 
-
-		$addcommentquery = "INSERT INTO MT_CONTENT_COMMENT_REPLY(CONTENT_ID, CONTENT_COMMENT_ID, COMMENT_REPLY_SEQ_NO, USERNAME, REPLY_DATA, CONTENT_REPLY_TIME)
-							VALUES('$id', '$commentreplyid', '$replysequencenumber', '$username', '$reply', NOW())";
-		$addcomment = mysql_query($addcommentquery) or die("Failed to post");
-		$replyid = mysql_insert_id();
+        $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_CONTENT_COMMENT_REPLY(CONTENT_ID, CONTENT_COMMENT_ID, COMMENT_REPLY_SEQ_NO, USERNAME, REPLY_DATA, CONTENT_REPLY_TIME)
+							                   VALUES(?, ?, ?, ?, ?, NOW())");
+        mysqli_stmt_bind_param($stmt, 'iiiss', $id, $commentreplyid, $replysequencenumber, $username, $reply);
+        mysqli_stmt_execute($stmt);
+        $addcomment = mysqli_stmt_get_result($stmt) or die("Failed to post");
+        $replyid = mysqli_insert_id($dbconnection);
+        mysqli_stmt_close($stmt);
 
 		if(isset($replyid)) {
 			print '<META HTTP-EQUIV="refresh" CONTENT="15">';
@@ -197,12 +224,14 @@ if(isset($_POST['reply'])) {
 }
 ?>
 <table>
-	<?php 
-	$commentsequencequery = sprintf("SELECT MAX(CONTENT_COMMENT_SEQ_NO) FROM MT_CONTENT_COMMENTS WHERE
-									 CONTENT_ID = '$id'");
-	
-	$commentsequence = mysql_query($commentsequencequery) or die('Failed to check sequence number');
-	$maxcommentsequence = mysql_fetch_row($commentsequence);
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT MAX(CONTENT_COMMENT_SEQ_NO) FROM MT_CONTENT_COMMENTS WHERE CONTENT_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $id);
+    mysqli_stmt_execute($stmt);
+    $commentsequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+    mysqli_stmt_close($stmt);
+
+	$maxcommentsequence = mysqli_fetch_row($commentsequence);
 	
 	if($maxcommentsequence[0] != NULL) {
 		$extra = $maxcommentsequence % 10; 

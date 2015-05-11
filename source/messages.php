@@ -59,23 +59,30 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 
 <?php 
 	if(!isset($_SESSION['friendselected'])) {
-		$unreadmessagequery = sprintf("SELECT FROM_USERNAME FROM MT_USER_MESSAGES WHERE
-								   	   TO_USERNAME = '$username' AND IS_MESSAGE_VIEWED = 'N' LIMIT 1");
-		$unreadmessages = mysql_query($unreadmessagequery) or die('Failed to check unread messages');
-		if(mysql_num_rows($unreadmessages) > 0) {
-			$unreadmessage = mysql_fetch_row($unreadmessages);
+        $stmt = mysqli_prepare($dbconnection, "SELECT FROM_USERNAME FROM MT_USER_MESSAGES WHERE
+								   	           TO_USERNAME = ? AND IS_MESSAGE_VIEWED = 'N' LIMIT 1");
+        mysqli_stmt_bind_param($stmt, 's', $username);
+        mysqli_stmt_execute($stmt);
+        $unreadmessages = mysqli_stmt_get_result($stmt) or die('Failed to check unread messages');
+        mysqli_stmt_close($stmt);
+
+		if(mysqli_num_rows($unreadmessages) > 0) {
+			$unreadmessage = mysqli_fetch_row($unreadmessages);
 			$_SESSION['friendselected'] = $unreadmessage[0];
 		}
 	}
-	
-	$friendsquery = sprintf("SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
-							 USERNAME = '$username' AND
-							 IS_FRIEND = 'Y'");
-	$friends = mysql_query($friendsquery) or die('Failed to load friends');
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
+							               USERNAME = ? AND IS_FRIEND = 'Y'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $friends = mysqli_stmt_get_result($stmt) or die('Failed to load friends');
+    mysqli_stmt_close($stmt);
+
 	echo "<tr><td><select name='friends' id='friends' style='width: 200px;'>";
 	echo "<option value='selectfriend'>Select Friend</option>";
-	if((mysql_num_rows($friends)) > 0) {
-		while($friendsresult = mysql_fetch_array($friends)) {
+	if((mysqli_num_rows($friends)) > 0) {
+		while($friendsresult = mysqli_fetch_array($friends)) {
 			$friend = $friendsresult["USER_CONTACT_ID"];
 			echo "<option value='$friend'>$friend</option>";
 		}
@@ -100,23 +107,29 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 			$messageitem = $_POST['messageitem'];
 			
 			if($messageitem != NULL) {
-				$messagesequencequery = sprintf("SELECT MAX(MESSAGE_SEQ_NO) FROM MT_USER_MESSAGES WHERE
-												 FROM_USERNAME = '$username' AND TO_USERNAME = '$chatfriend'
-												 OR
-												 FROM_USERNAME = '$chatfriend' AND TO_USERNAME = '$username'");
+                $stmt = mysqli_prepare($dbconnection, "SELECT MAX(MESSAGE_SEQ_NO) FROM MT_USER_MESSAGES WHERE
+												       FROM_USERNAME = ? AND TO_USERNAME = ?
+												       OR FROM_USERNAME = ? AND TO_USERNAME = ?");
+                mysqli_stmt_bind_param($stmt, 'ssss', $username, $chatfriend, $chatfriend, $username);
+                mysqli_stmt_execute($stmt);
+                $messagesequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+                mysqli_stmt_close($stmt);
 
-				$messagesequence = mysql_query($messagesequencequery) or die('Failed to check sequence number');
-				$maxmessagesequence = mysql_fetch_row($messagesequence);
+				$maxmessagesequence = mysqli_fetch_row($messagesequence);
 				if($maxmessagesequence[0] != NULL) {
 					$sequencenumber = $maxmessagesequence[0] + 1;
 				} else {
 					$sequencenumber = 1;
 				}
-				
-				$addmessagequery = "INSERT INTO MT_USER_MESSAGES(FROM_USERNAME, TO_USERNAME, MESSAGE_CONTENT, IS_MESSAGE_VIEWED, MESSAGE_SEQ_NO, MESSAGE_TIMESTAMP)
-								    VALUES('$username', '$chatfriend', '$messageitem', 'N', '$sequencenumber', NOW())";
-				$addmessage = mysql_query($addmessagequery) or die("Failed to post");
-				$messageid = mysql_insert_id();		
+
+                $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_USER_MESSAGES(FROM_USERNAME, TO_USERNAME,
+                                                       MESSAGE_CONTENT, IS_MESSAGE_VIEWED, MESSAGE_SEQ_NO, MESSAGE_TIMESTAMP)
+								                       VALUES(?, ?, ?, 'N', ?, NOW())");
+                mysqli_stmt_bind_param($stmt, 'sssi', $username, $chatfriend, $messageitem, $sequencenumber);
+                mysqli_stmt_execute($stmt);
+                $addmessage = mysqli_stmt_get_result($stmt) or die("Failed to post");
+                $messageid = mysqli_insert_id($dbconnection);
+                mysqli_stmt_close($stmt);
 
 				if(isset($messageid)) {
 					print '<meta http-equiv="refresh" content="0;url=./messages.php?">';
@@ -137,17 +150,20 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 		if(isset($_POST['index'])) {
 			$indexvalue = $_POST['index'];
 			$startindex = ($indexvalue * 5) - 5;
-			$messagequery = sprintf("SELECT * FROM MT_USER_MESSAGES WHERE
-				  					 FROM_USERNAME = '$username' AND TO_USERNAME = '$chatfriend'
-									 OR
-									 FROM_USERNAME = '$chatfriend' AND TO_USERNAME = '$username' LIMIT $startindex,5 ");
+            $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER_MESSAGES WHERE
+				  					               FROM_USERNAME = ? AND TO_USERNAME = ?
+									               OR FROM_USERNAME = ? AND TO_USERNAME = ? LIMIT ?,5");
+            mysqli_stmt_bind_param($stmt, 'ssssi', $username, $chatfriend, $chatfriend, $username, $startindex);
 		} else {
-			$messagecountquery = sprintf("SELECT COUNT(MESSAGE_ID) FROM MT_USER_MESSAGES WHERE
-								          FROM_USERNAME = '$username' AND TO_USERNAME = '$chatfriend'
-										  OR
-										  FROM_USERNAME = '$chatfriend' AND TO_USERNAME = '$username'");
-			$messagecount = mysql_query($messagecountquery) or die('Failed to check count');
-			$maxmessagecount = mysql_fetch_row($messagecount);
+            $stmt = mysqli_prepare($dbconnection, "SELECT COUNT(MESSAGE_ID) FROM MT_USER_MESSAGES WHERE
+								                   FROM_USERNAME = ? AND TO_USERNAME = ?
+										           OR FROM_USERNAME = ? AND TO_USERNAME = ?");
+            mysqli_stmt_bind_param($stmt, 'ssss', $username, $chatfriend, $chatfriend, $username);
+            mysqli_stmt_execute($stmt);
+            $messagecount = mysqli_stmt_get_result($stmt) or die('Failed to check count');
+            mysqli_stmt_close($stmt);
+
+			$maxmessagecount = mysqli_fetch_row($messagecount);
 			if($maxmessagecount[0] != 0) {
 				$required = $maxmessagecount[0] % 5;
 					
@@ -159,23 +175,25 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 			} else {
 				$shown = 5;
 			}
-		
-			$messagequery = sprintf("SELECT * FROM (SELECT * FROM MT_USER_MESSAGES WHERE
-									 FROM_USERNAME = '$username' AND TO_USERNAME = '$chatfriend'
-									 OR
-								  	 FROM_USERNAME = '$chatfriend' AND TO_USERNAME = '$username'
-									 ORDER BY MESSAGE_TIMESTAMP DESC LIMIT $shown)
-									 AS LAST_MESSAGE ORDER BY MESSAGE_TIMESTAMP");
+
+            $stmt = mysqli_prepare($dbconnection, "SELECT * FROM (SELECT * FROM MT_USER_MESSAGES WHERE
+									               FROM_USERNAME = ? AND TO_USERNAME = ?
+									               OR FROM_USERNAME = ? AND TO_USERNAME = ?
+                                                   ORDER BY MESSAGE_TIMESTAMP DESC LIMIT ?)
+									               AS LAST_MESSAGE ORDER BY MESSAGE_TIMESTAMP");
+            mysqli_stmt_bind_param($stmt, 'ssssi', $username, $chatfriend, $chatfriend, $username, $shown);
 		}
 		
-		if(isset($messagequery)) {
-			$message = mysql_query($messagequery) or die('Failed to retrieve message');
-			if(mysql_num_rows($message) > 0) {
+		if(isset($stmt)) {
+            mysqli_stmt_execute($stmt);
+            $message = mysqli_stmt_get_result($stmt) or die('Failed to read message');
+            mysqli_stmt_close($stmt);
+			if(mysqli_num_rows($message) > 0) {
 				$messageids = array();
 				$messagereceiver = array();
 				echo '<div class="display">';
 				echo '<table border="1">';
-				while($messageresult = mysql_fetch_array($message)) {
+				while($messageresult = mysqli_fetch_array($message)) {
 					$messageids[] = $messageresult["MESSAGE_ID"];
 					$messagereceiver[] = $messageresult["TO_USERNAME"];
 					$messagecontent = $messageresult["MESSAGE_CONTENT"];
@@ -205,10 +223,13 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 			if(isset($messageids)) {
 				for($i=0;$i<count($messageids);$i++) {
 					if($messagereceiver[$i] == $username) {
-						$updateviewquery = "UPDATE MT_USER_MESSAGES 
-							    			SET IS_MESSAGE_VIEWED = 'Y' WHERE 
-								  			MESSAGE_ID = '$messageids[$i]'";
-						$updateview = mysql_query($updateviewquery) or die("Failed to update view");
+                        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_MESSAGES
+                                                               SET IS_MESSAGE_VIEWED = 'Y' WHERE
+								  			                   MESSAGE_ID = ");
+                        mysqli_stmt_bind_param($stmt, 'i', $messageids[$i]);
+                        mysqli_stmt_execute($stmt);
+                        $updateview = mysqli_stmt_get_result($stmt) or die("Failed to update view");
+                        mysqli_stmt_close($stmt);
 					}
 				}
 			}
@@ -216,18 +237,22 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 		
 		if(isset($_POST['delete'])) {
 			$id = $_POST['delete'];
-			$findcreatorquery = "SELECT FROM_USERNAME FROM MT_USER_MESSAGES
-								 WHERE MESSAGE_ID = '$id'";
-			$findcreator = mysql_query($findcreatorquery);
+            $stmt = mysqli_prepare($dbconnection, "SELECT FROM_USERNAME FROM MT_USER_MESSAGES WHERE MESSAGE_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'i', $id);
+            mysqli_stmt_execute($stmt);
+            $findcreator = mysqli_stmt_get_result($stmt) or die("Failed to find creator");
+            mysqli_stmt_close($stmt);
 		
-			$messagecreator = mysql_fetch_row($findcreator);
+			$messagecreator = mysqli_fetch_row($findcreator);
 			
 			if($username == $messagecreator[0]) {
-				$deletemessagequery = "DELETE FROM MT_USER_MESSAGES WHERE
-									   MESSAGE_ID = '$id'";
-				$deletemessage = mysql_query($deletemessagequery);
-				$deletemessageid = mysql_insert_id();
-					
+                $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_USER_MESSAGES WHERE MESSAGE_ID = ?");
+                mysqli_stmt_bind_param($stmt, 'i', $id);
+                mysqli_stmt_execute($stmt);
+                $deletemessage = mysqli_stmt_get_result($stmt) or die("Failed to delete message");
+                $deletemessageid = mysqli_insert_id($dbconnection);
+                mysqli_stmt_close($stmt);
+
 				if(isset($deletemessageid)) {
 					print '<meta http-equiv="refresh" content="0;url=./messages.php?">';
 				}
@@ -246,13 +271,14 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	<?php 
 	if(isset($_SESSION['friendselected'])) {
 		$chatfriend = $_SESSION['friendselected'];
-		$messagesequencequery = sprintf("SELECT MAX(MESSAGE_SEQ_NO) FROM MT_USER_MESSAGES WHERE
-									 	FROM_USERNAME = '$username' AND TO_USERNAME = '$chatfriend'
-									 	OR
-									 	FROM_USERNAME = '$chatfriend' AND TO_USERNAME = '$username'");
-			
-		$messagesequence = mysql_query($messagesequencequery) or die('Failed to check sequence number');
-		$maxmessagesequence = mysql_fetch_row($messagesequence);
+        $stmt = mysqli_prepare($dbconnection, "SELECT MAX(MESSAGE_SEQ_NO) FROM MT_USER_MESSAGES WHERE
+									 	       FROM_USERNAME = ? AND TO_USERNAME = ?
+									 	       OR FROM_USERNAME = ? AND TO_USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ssss', $username, $chatfriend, $chatfriend, $username);
+        mysqli_stmt_execute($stmt);
+        $messagesequence = mysqli_stmt_get_result($stmt) or die('Failed to check sequence number');
+        mysqli_stmt_close($stmt);
+		$maxmessagesequence = mysqli_fetch_row($messagesequence);
 		
 		if($maxmessagesequence[0] != NULL) {
 			$extra = $maxmessagesequence % 5; 

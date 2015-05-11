@@ -58,16 +58,20 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 	<tr></tr>
 	<tr></tr>
 	<tr></tr>
-	<?php 
-	$blockedquery = sprintf("SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
-							 USERNAME = '$username' AND
-							 IS_FRIEND = 'N' AND
-							 IS_BLOCKED = 'Y'");
-	$blocked = mysql_query($blockedquery) or die('Failed to load blocked users');
+	<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
+                                           USERNAME = ? AND
+                                           IS_FRIEND = 'N' AND
+                                           IS_BLOCKED = 'Y'");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $blocked = mysqli_stmt_get_result($stmt) or die('Failed to load blocked users');
+    mysqli_stmt_close($stmt);
+
 	echo "<select name='blocked' id='blocked' style='width: 300px;'>";
 	echo "<option value='selectuser'>Select User</option>";
-	if((mysql_num_rows($blocked)) > 0) {
-		while($blockedresult = mysql_fetch_array($blocked)) {
+	if((mysqli_num_rows($blocked)) > 0) {
+		while($blockedresult = mysqli_fetch_array($blocked)) {
 			$usercontactid = $blockedresult["USER_CONTACT_ID"];
 			echo "<option value='$usercontactid'>$usercontactid</option>";
 		}
@@ -83,21 +87,27 @@ if(isset($_SESSION['username']) && $_SESSION['username'] != NULL) {
 			echo 'alert("Please select a user to unblock")';
 			echo '</script>';
 		} else {
-			$blockedlistsquery = "UPDATE MT_USER_CONTACTS 
-								  SET IS_FRIEND = '' AND 
-								  IS_BLOCKED = 'N' WHERE
-							      USERNAME = '$username' AND
-								  USER_CONTACT_ID = '$blockedusername'";
-			$blockedlists = mysql_query($blockedlistsquery) or die('Failed to update blocked list');
-			$blockedfromid = mysql_insert_id();
-			
-			$blockedlistsquery = "UPDATE MT_USER_CONTACTS
-								  SET IS_FRIEND = '' AND
-						     	  IS_BLOCKED = 'N' WHERE
-								  USERNAME = '$blockedusername' AND
-								  USER_CONTACT_ID = '$username'";
-			$blockedlists = mysql_query($blockedlistsquery) or die('Failed to update blocked list');
-			$blockedtoid = mysql_insert_id();
+            $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS
+                                                   SET IS_FRIEND = '' AND
+                                                   IS_BLOCKED = 'N' WHERE
+                                                   USERNAME = ? AND
+                                                   USER_CONTACT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'ss', $username, $blockedusername);
+            mysqli_stmt_execute($stmt);
+            $blockedlists = mysqli_stmt_get_result($stmt) or die('Failed to update blocked list');
+            $blockedfromid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
+
+            $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER_CONTACTS
+                                                   SET IS_FRIEND = '' AND
+                                                   IS_BLOCKED = 'N' WHERE
+                                                   USERNAME = ? AND
+                                                   USER_CONTACT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'ss', $blockedusername, $username);
+            mysqli_stmt_execute($stmt);
+            $blockedlists = mysqli_stmt_get_result($stmt) or die('Failed to update blocked list');
+            $blockedtoid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			
 			if(isset($blockedfromid) && isset($blockedtoid)) {
 				echo '<script type="text/javascript">';

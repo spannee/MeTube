@@ -70,10 +70,14 @@ if(isset($_POST['signup'])) {
 		}
 			
 		dbConnect();
-			
-		$checkUserEmailExists = sprintf("SELECT * FROM MT_USER WHERE EMAIL = '$email'");
-		$emailCheck = mysql_query($checkUserEmailExists);
-		if(mysql_num_rows($emailCheck) == NULL) {
+
+        $stmt = mysqli_prepare($dbconnection, 'SELECT * FROM MT_USER WHERE EMAIL = ?');
+        mysqli_stmt_bind_param($stmt, 's', $email);
+        mysqli_stmt_execute($stmt);
+        $emailCheck = mysqli_stmt_get_result($stmt) or die('Failed to check email');
+        mysqli_stmt_close($stmt);
+
+		if(mysqli_num_rows($emailCheck) == NULL) {
 			$alreadyEmailExists = FALSE;
 		} else {
 			echo '<script type="text/javascript">';
@@ -81,10 +85,14 @@ if(isset($_POST['signup'])) {
 			echo '</script>';
 			$alreadyEmailExists = TRUE;
 		}
-			
-		$checkUsernameExists = sprintf("SELECT * FROM MT_USER WHERE USERNAME = '$username'");
-		$usernameCheck = mysql_query($checkUsernameExists);
-		if(mysql_num_rows($usernameCheck) == NULL) {
+
+        $stmt = mysqli_prepare($dbconnection, 'SELECT * FROM MT_USER WHERE USERNAME = ?');
+        mysqli_stmt_bind_param($stmt, 's', $username);
+        mysqli_stmt_execute($stmt);
+        $usernameCheck = mysqli_stmt_get_result($stmt) or die('Failed to check username');
+        mysqli_stmt_close($stmt);
+
+		if(mysqli_num_rows($usernameCheck) == NULL) {
 			$alreadyUsernameExists = FALSE;
 		} else {
 			echo '<script type="text/javascript">';
@@ -95,15 +103,11 @@ if(isset($_POST['signup'])) {
 		
 		if(!$alreadyEmailExists && !$alreadyUsernameExists) {
 			$dob = $year."-".$month."-".$day;
-			$insertuser = "INSERT INTO MT_USER VALUES(
-						  '$username',
-						  '$password', 
-						  '$firstname', 
-						  '$lastname',
-			 			  '$email', 
-						  '$dob')";
-									  
-			$insert = mysql_query($insertuser) or die("Failed to add user");
+            $stmt = mysqli_prepare($dbconnection, 'INSERT INTO MT_USER VALUES(?, ?, ?, ?, ?, ?)');
+            mysqli_stmt_bind_param($stmt, 'ssssss', $username, $password, $firstname, $lastname, $email, $dob);
+            mysqli_stmt_execute($stmt);
+            $insert = mysqli_stmt_get_result($stmt) or die('Failed to add user');
+            mysqli_stmt_close($stmt);
 			
 			if(!isset($insert)) {
 				echo '<script type="text/javascript">';

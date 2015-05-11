@@ -47,24 +47,32 @@ if(isset($_POST['creategroup'])) {
 	$groupname = $_POST['groupname'];
 	
 	if($groupname != NULL) {
-		$friendsquery = sprintf("SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
-								 USERNAME = '$username' AND
-								 IS_FRIEND = 'Y'");
-		$friends = mysql_query($friendsquery) or die('Failed to load friends');
+        $stmt = mysqli_prepare($dbconnection, "SELECT USER_CONTACT_ID FROM MT_USER_CONTACTS WHERE
+								               USERNAME = ? AND IS_FRIEND = 'Y'");
+        mysqli_stmt_bind_param($stmt, 's', $username);
+        mysqli_stmt_execute($stmt);
+        $friends = mysqli_stmt_get_result($stmt) or die('Failed to load friends');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($friends)) > 0) {
-			$addgroupquery = "INSERT INTO MT_GROUPS(GROUP_CREATED_BY, GROUP_NAME, CREATED_DATE_TIMESTAMP)
-							  VALUES('$username', '$groupname', NOW())";
-			$addgroup = mysql_query($addgroupquery) or die("Failed to add group");
-			$groupid = mysql_insert_id();
+		if((mysqli_num_rows($friends)) > 0) {
+            $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_GROUPS(GROUP_CREATED_BY, GROUP_NAME, CREATED_DATE_TIMESTAMP)
+							                       VALUES(?, ?, NOW())");
+            mysqli_stmt_bind_param($stmt, 'ss', $username, $groupname);
+            mysqli_stmt_execute($stmt);
+            $addgroup = mysqli_stmt_get_result($stmt) or die("Failed to add group");
+            $groupid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
 			
 			if(isset($groupid)) {
 				$_SESSION['groupid'] = $groupid;
-				while($friendsresult = mysql_fetch_array($friends)) {
+				while($friendsresult = mysqli_fetch_array($friends)) {
 					$usercontactid = $friendsresult["USER_CONTACT_ID"];
-					$addfriendsquery = "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME)
-										VALUES('$groupid', '$usercontactid')";
-					$addfriends = mysql_query($addfriendsquery) or die("Failed to add friends");
+                    $stmt = mysqli_prepare($dbconnection, "INSERT INTO MT_GROUP_MEMBERS(GROUP_ID, USERNAME)
+										                   VALUES(?, ?)");
+                    mysqli_stmt_bind_param($stmt, 'ii', $groupid, $usercontactid);
+                    mysqli_stmt_execute($stmt);
+                    $addfriends = mysqli_stmt_get_result($stmt) or die("Failed to add friends");
+                    mysqli_stmt_close($stmt);
 				}	
 			}
 		} else {

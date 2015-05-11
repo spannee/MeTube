@@ -67,14 +67,17 @@ if(isset($_SESSION['groupid'])) {
 	<tr></tr>
 	<tr></tr>
 
-<?php 
-	$friendsquery = sprintf("SELECT USERNAME FROM MT_GROUP_MEMBERS WHERE
-							 GROUP_ID = '$groupid'");
-	$friends = mysql_query($friendsquery) or die('Failed to load friends');
+<?php
+    $stmt = mysqli_prepare($dbconnection, "SELECT USERNAME FROM MT_GROUP_MEMBERS WHERE GROUP_ID = ?");
+    mysqli_stmt_bind_param($stmt, 'i', $groupid);
+    mysqli_stmt_execute($stmt);
+    $friends = mysqli_stmt_get_result($stmt) or die('Failed to load friends');
+    mysqli_stmt_close($stmt);
+
 	echo "<tr><td><select name='friends' id='friends' style='width: 300px;'>";
 	echo "<option value='selectfriend'>Select Friend</option>";
-	if((mysql_num_rows($friends)) > 0) {
-		while($friendsresult = mysql_fetch_array($friends)) {
+	if((mysqli_num_rows($friends)) > 0) {
+		while($friendsresult = mysqli_fetch_array($friends)) {
 			$groupmember = $friendsresult["USERNAME"];
 			echo "<option value='$groupmember'>$groupmember</option>";
 		}
@@ -91,12 +94,14 @@ if(isset($_SESSION['groupid'])) {
 			echo 'alert("Please select a person")';
 			echo '</script>';
 		} else {
-			$deletequery = "DELETE FROM MT_GROUP_MEMBERS WHERE
-						    USERNAME = '$membername' AND
-							GROUP_ID = '$groupid'";
-			$delete = mysql_query($deletequery) or die('Failed to delete friends');
-			$deleteid = mysql_insert_id();
-			
+            $stmt = mysqli_prepare($dbconnection, "DELETE FROM MT_GROUP_MEMBERS WHERE
+						                           USERNAME = ? AND GROUP_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'si', $membername, $groupid);
+            mysqli_stmt_execute($stmt);
+            $delete = mysqli_stmt_get_result($stmt) or die('Failed to delete friends');
+            $deleteid = mysqli_insert_id($dbconnection);
+            mysqli_stmt_close($stmt);
+
 			if(isset($deleteid)) {
 				echo '<script type="text/javascript">';
 				echo 'alert("Removed from group")';

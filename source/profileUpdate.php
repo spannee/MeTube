@@ -46,11 +46,12 @@ if(isset($_POST['firstnamebutton'])) {
 	
 	if($error) {
 	
-	} else {			
-		$updatefirstnamequery = "UPDATE MT_USER SET 
-						     	 USER_FIRST_NAME = '$firstname'
-						    	 WHERE USERNAME = '$username'";
-		$updatefirstname = mysql_query($updatefirstnamequery) or die("Failed to update first name");
+	} else {
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER SET USER_FIRST_NAME = ? WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $firstname, $username);
+        mysqli_stmt_execute($stmt);
+        $updatefirstname = mysqli_stmt_get_result($stmt) or die("Failed to update first name");
+        mysqli_stmt_close($stmt);
 		
 		if(!isset($updatefirstname)) {
 			echo '<script type="text/javascript">';
@@ -69,11 +70,12 @@ if(isset($_POST['firstnamebutton'])) {
 	
 	if($error) {
 	
-	} else {			
-		$updatelastnamequery = "UPDATE MT_USER SET 
-						     	USER_LAST_NAME = '$lastname'
-						    	WHERE USERNAME = '$username'";
-		$updatelastname = mysql_query($updatelastnamequery) or die("Failed to update last name");
+	} else {
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER SET USER_LAST_NAME = ? WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $lastname, $username);
+        mysqli_stmt_execute($stmt);
+        $updatelastname = mysqli_stmt_get_result($stmt) or die("Failed to update last name");
+        mysqli_stmt_close($stmt);
 		
 		if(!isset($updatelastname)) {
 			echo '<script type="text/javascript">';
@@ -85,11 +87,14 @@ if(isset($_POST['firstnamebutton'])) {
 	}		
 } elseif(isset($_POST['emailbutton'])) {	
 	$email = $_POST['email'];
+
+    $stmt = mysqli_prepare($dbconnection, "SELECT * FROM MT_USER WHERE EMAIL = ? AND USERNAME != ?");
+    mysqli_stmt_bind_param($stmt, 'ss', $email, $username);
+    mysqli_stmt_execute($stmt);
+    $emailCheck = mysqli_stmt_get_result($stmt) or die("Failed to check email");
+    mysqli_stmt_close($stmt);
 	
-	$checkUserEmailExists = sprintf("SELECT * FROM MT_USER WHERE EMAIL = '$email' AND USERNAME != '$username'");
-	$emailCheck = mysql_query($checkUserEmailExists);
-	
-	if(mysql_num_rows($emailCheck) > 0) {
+	if(mysqli_num_rows($emailCheck) > 0) {
 		$emailerror = TRUE;
 	} else {
 		$emailerror = FALSE;
@@ -101,11 +106,12 @@ if(isset($_POST['firstnamebutton'])) {
 	
 	if($error || $emailerror) {
 	
-	} else {			
-		$updateemailnamequery = "UPDATE MT_USER SET 
-						     	 EMAIL = '$email'
-						    	 WHERE USERNAME = '$username'";
-		$updateemail = mysql_query($updateemailnamequery) or die("Failed to update email");
+	} else {
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER SET EMAIL = ? WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $email, $username);
+        mysqli_stmt_execute($stmt);
+        $updateemail = mysqli_stmt_get_result($stmt) or die("Failed to update email");
+        mysqli_stmt_close($stmt);
 		
 		if(!isset($updateemail)) {
 			echo '<script type="text/javascript">';
@@ -133,11 +139,12 @@ if(isset($_POST['firstnamebutton'])) {
 	
 	if($pwderror) {
 	
-	} else {			
-		$updatepwdquery = "UPDATE MT_USER SET 
-						   PASSWORD = '$password'
-						   WHERE USERNAME = '$username'";
-		$updatepwd = mysql_query($updatepwdquery) or die("Failed to update password");
+	} else {
+        $stmt = mysqli_prepare($dbconnection, "UPDATE MT_USER SET PASSWORD = ? WHERE USERNAME = ?");
+        mysqli_stmt_bind_param($stmt, 'ss', $password, $username);
+        mysqli_stmt_execute($stmt);
+        $updatepwd = mysqli_stmt_get_result($stmt) or die("Failed to update password");
+        mysqli_stmt_close($stmt);
 		
 		if(!isset($updatepwd)) {
 			echo '<script type="text/javascript">';

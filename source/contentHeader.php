@@ -35,24 +35,27 @@ if(isset($_GET['searchbutton'])) {
 		$contentids = array();
 		$contenttitles = array();
 		foreach ($valuesinsearch as $value) {
-			$valuesearch = "SELECT CONTENT_ID
-							FROM MT_CONTENT_TAGS WHERE
-							TAGS LIKE '%$value%'";
-			$valuesearchquery = mysql_query($valuesearch) or die('Failed to search tags');
-			while($valuesearchresults = mysql_fetch_array($valuesearchquery)) {
+            $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID FROM MT_CONTENT_TAGS WHERE TAGS LIKE ?");
+            $value = '%' . $value . '%';
+            mysqli_stmt_bind_param($stmt, 's', $value);
+            mysqli_stmt_execute($stmt);
+            $valuesearch = mysqli_stmt_get_result($stmt) or die('Failed to search tags');
+            mysqli_stmt_close($stmt);
+
+			while($valuesearchresults = mysqli_fetch_array($valuesearch)) {
 				$contentidsintags[] = $valuesearchresults["CONTENT_ID"];				
 			}
 		}
 		foreach ($contentidsintags as $id) {
-			$contentsearch = sprintf("SELECT CONTENT_ID,
-									   CONTENT_TITLE,
-									   CONTENT_LOCATION
-									   FROM MT_CONTENT WHERE
-									   CONTENT_TYPE = '$mediatype'
-									   AND 
-									   CONTENT_ID = '$id'");
-			$valuecontentquery = mysql_query($contentsearch) or die('Failed to search content');
-			while($contentsearchresults = mysql_fetch_array($valuecontentquery)) {
+            $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+									               FROM MT_CONTENT WHERE CONTENT_TYPE = ?
+									               AND CONTENT_ID = ?");
+            mysqli_stmt_bind_param($stmt, 'si', $mediatype, $id);
+            mysqli_stmt_execute($stmt);
+            $contentsearch = mysqli_stmt_get_result($stmt) or die('Failed to search content');
+            mysqli_stmt_close($stmt);
+
+			while($contentsearchresults = mysqli_fetch_array($contentsearch)) {
 				$contentids[] = $contentsearchresults["CONTENT_ID"]; 
 				$contenttitles[] = $contentsearchresults["CONTENT_TITLE"];
 			}
@@ -70,15 +73,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$musicsearch = sprintf("SELECT CONTENT_ID,
-									   CONTENT_TITLE,
-									   CONTENT_LOCATION
-									   FROM MT_CONTENT WHERE
-									   CONTENT_CATEGORY = 'M' AND
-									   CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($musicsearch) or die('Failed to search music');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+									           FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'M' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search music');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -92,15 +94,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$sportsearch = sprintf("SELECT CONTENT_ID,
-									   CONTENT_TITLE,
-									   CONTENT_LOCATION
-								       FROM MT_CONTENT WHERE
-									   CONTENT_CATEGORY = 'S' AND
-									   CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($sportsearch) or die('Failed to search sports');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'S' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search sports');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -114,15 +115,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$gamesearch = sprintf("SELECT CONTENT_ID,
-									   CONTENT_TITLE,
-									   CONTENT_LOCATION
-									   FROM MT_CONTENT WHERE
-									   CONTENT_CATEGORY = 'G' AND
-									   CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($gamesearch) or die('Failed to search games');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'G' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search games');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -136,15 +136,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$filmsearch = sprintf("SELECT CONTENT_ID,
-									  CONTENT_TITLE,
-									  CONTENT_LOCATION
-									  FROM MT_CONTENT WHERE
-									  CONTENT_CATEGORY = 'F' AND
-									  CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($filmsearch) or die('Failed to search films');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'F' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search films');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -158,15 +157,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$tvshowsearch = sprintf("SELECT CONTENT_ID,
-									  CONTENT_TITLE,
-									  CONTENT_LOCATION
-									  FROM MT_CONTENT WHERE
-									  CONTENT_CATEGORY = 'T' AND
-									  CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($tvshowsearch) or die('Failed to search TV Shows');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'T' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search TV Shows');
+        mysqli_stmt_close($stmt);
 		
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -180,15 +178,14 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$tvshowsearch = sprintf("SELECT CONTENT_ID,
-										CONTENT_TITLE,
-										CONTENT_LOCATION
-										FROM MT_CONTENT WHERE
-										CONTENT_CATEGORY = 'N' AND
-										CONTENT_TYPE = '$mediatype'");
-		$search = mysql_query($tvshowsearch) or die('Failed to search News');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+								               FROM MT_CONTENT WHERE CONTENT_CATEGORY = 'N' AND CONTENT_TYPE = ?");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search News');
+        mysqli_stmt_close($stmt);
 
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -202,15 +199,15 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$popularitysearch = sprintf("SELECT CONTENT_ID,
-											CONTENT_TITLE,
-											CONTENT_LOCATION
-											FROM MT_CONTENT WHERE
-											CONTENT_TYPE = '$mediatype'
-											ORDER BY VIEW_COUNT DESC LIMIT 10");
-		$search = mysql_query($popularitysearch) or die('Failed to search Popular Media');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+											   FROM MT_CONTENT WHERE CONTENT_TYPE = ?
+											   ORDER BY VIEW_COUNT DESC LIMIT 10");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search Popular Media');
+        mysqli_stmt_close($stmt);
 
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -224,15 +221,15 @@ if(isset($_GET['searchbutton'])) {
 	if($mediatype == 'N') {
 		$mediatypeerror = 1;
 	} else {
-		$recentlyuploaded = sprintf("SELECT CONTENT_ID,
-											CONTENT_TITLE,
-											CONTENT_LOCATION
-											FROM MT_CONTENT WHERE
-											CONTENT_TYPE = '$mediatype'
-											ORDER BY UPLOAD_DATE DESC LIMIT 10");
-		$search = mysql_query(recentlyuploaded) or die('Failed to search Recently Uploaded media');
+        $stmt = mysqli_prepare($dbconnection, "SELECT CONTENT_ID, CONTENT_TITLE, CONTENT_LOCATION
+											   FROM MT_CONTENT WHERE CONTENT_TYPE = ?
+											   ORDER BY UPLOAD_DATE DESC LIMIT 10");
+        mysqli_stmt_bind_param($stmt, 's', $mediatype);
+        mysqli_stmt_execute($stmt);
+        $search = mysqli_stmt_get_result($stmt) or die('Failed to search Recently Uploaded media');
+        mysqli_stmt_close($stmt);
 
-		if((mysql_num_rows($search)) > 0) {
+		if((mysqli_num_rows($search)) > 0) {
 			$searchresult = 1;
 		} else {
 			echo '<script type="text/javascript">';
@@ -246,7 +243,7 @@ if(isset($searchresult)) {
 	echo "<br/>";
 	echo "<br/>";
 	echo "<table align='center'>";
-	while($searchresult = mysql_fetch_array($search)) {
+	while($searchresult = mysqli_fetch_array($search)) {
 		$contentid = $searchresult["CONTENT_ID"];
 		$contenttitle = $searchresult["CONTENT_TITLE"];
 		echo "<tr><td><a href='./content.php?content_id=".$contentid."'><img src='fileUploads/image/photo.jpg' height=180 width=150/></a></td>";
